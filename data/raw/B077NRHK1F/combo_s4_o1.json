@@ -1,0 +1,57 @@
+{
+ "asin": "B077NRHK1F",
+ "star_filter": 4,
+ "sort": 1,
+ "fetched_at": "2026-10-11T05:18:35.521469+00:00",
+ "endpoint": "https://www.woot.com/review/Reviews/B077NRHK1F",
+ "reviews": [
+  {
+   "Author": "Mixk",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 4,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on June 13, 2021",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "The flavor is awesome but I do feel the value for money isn’t too great. If there was more in the package this would be a great deal but since there isn’t too much I can’t give it 5 stars.",
+   "Title": "Easygoing Salt"
+  },
+  {
+   "Author": "Lori Wornom",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 4,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on September 16, 2020",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "Good salt but I wouldn’t call it flake. It’s not flaky at all like the Maldon brand. It’s more of a chunky granule",
+   "Title": "Not a true flake but still good"
+  },
+  {
+   "Author": "Lisaclare",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 4,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on June 21, 2019",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "The salt was heavier than I expected it to be.",
+   "Title": "If you like lighter and flakier this might not be for you"
+  }
+ ]
+}

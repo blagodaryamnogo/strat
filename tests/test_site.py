@@ -97,8 +97,10 @@ def check_consistency(page, site, a):
     # chart labels
     svg = (site / "charts/nps_baseline.svg").read_text()
     for c in a["competitors"]:
-        if c["nps"] is not None:
+        if c["nps"] is not None and c.get("comparable", True):
             assert f">{c['nps']:+d}</text>" in svg
+        elif c["nps"] is not None:  # capped sample: named in the footnote, no bar
+            assert f">{c['competitor']}</text>" not in svg and c["competitor"] in svg
     # PDF
     text = "".join(pg.extract_text() for pg in PdfReader(site / "report.pdf").pages)
     for c in a["competitors"]:

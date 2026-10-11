@@ -53,7 +53,7 @@ def from_woot(rec, product, combo, path):
         "competitor": product["competitor"], "product_name": product["product_name"], "asin": product["asin"],
         "rating": parse_rating(rec.get("OverallRating")),
         "title": html.unescape(rec.get("Title") or "") or None,
-        "review_text": rec.get("Text") or None,
+        "review_text": html.unescape(rec.get("Text") or "") or None,  # endpoint HTML-escapes text (&#39;)
         "review_date": parse_date(rec.get("OriginDescription")),
         "author": rec.get("Author") or None,
         "verified_purchase": rec.get("IsVerifiedPurchase"),

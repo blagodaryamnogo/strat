@@ -3,8 +3,9 @@
 Status meanings:
   candidate  - ASIN found in web-search results that point to an amazon.com /dp/ URL,
                but the live listing could not be opened from this environment.
-  verified   - ASIN confirmed by a successful review retrieval whose records match the
-               product (set automatically in the collection log, not here).
+  2026-10-11: all five ASINs returned reviews via the Woot endpoint; review text was
+  spot-checked and matches each product (flake salt for four; fine Redmond salt with
+  grit/sand complaints for Redmond). amazon.com listings remain unreachable.
 
 Every entry records where the ASIN came from. Nothing here is a review observation.
 """
@@ -44,6 +45,10 @@ PRODUCTS = [
         "asin_evidence": [
             "Web search (2026-10-11) returned amazon.com/.../dp/B077NRHK1F 'SaltWorks Pacific Blue Sea Salt, Artisan Pour Spout Pouch, Kosher Flake, 8 Ounce'",
         ],
+        "low_n_investigation": (
+            "2026-10-11 live collection returned 40 distinct reviews (< 50 target). Web searches for another SaltWorks "
+            "flake-salt ASIN on amazon.com found only seasalt.com (brand site) pages and no Amazon listing/ASIN; "
+            "amazon.com itself is blocked by the network policy. No substitution made; kept and flagged below_min_n."),
     },
     {
         "competitor": "The Spice Lab",
@@ -55,6 +60,10 @@ PRODUCTS = [
         "asin_evidence": [
             "Web search (2026-10-11) returned amazon.com/.../dp/B0030MZMIK 'The Spice Lab Cyprus White Flake Kosher Salt - 8 Oz. Bag'",
         ],
+        "low_n_investigation": (
+            "2026-10-11 live collection returned 41 distinct reviews (< 50 target). Web searches for another Spice Lab "
+            "flake-salt ASIN found only non-Amazon listings (Walmart) for this same product and unrelated non-flake Spice Lab "
+            "salts (e.g. fine Himalayan pink, coarse grilling salt), which are not comparable. No substitution made; kept and flagged below_min_n."),
     },
     {
         "competitor": "Redmond Real Salt",

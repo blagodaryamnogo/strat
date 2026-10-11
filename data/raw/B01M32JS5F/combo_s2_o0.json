@@ -1,0 +1,143 @@
+{
+ "asin": "B01M32JS5F",
+ "star_filter": 2,
+ "sort": 0,
+ "fetched_at": "2026-10-11T05:18:16.693700+00:00",
+ "endpoint": "https://www.woot.com/review/Reviews/B01M32JS5F",
+ "reviews": [
+  {
+   "Author": "Richard adams",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [
+    "https://m.media-amazon.com/images/I/61zFHym11pL.jpg"
+   ],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on May 5, 2026",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "ITS ONLY 4 OZ. FOR $20 😮 I did not realize,so small. The others I was looking at in sea salts are about a pound",
+   "Title": "Size matters... it&#39;s only 4 oz."
+  },
+  {
+   "Author": "robindavid",
+   "HelpfulVotes": 1,
+   "Id": null,
+   "ImageUrls": [
+    "https://m.media-amazon.com/images/I/71zAEOtyRSL.jpg"
+   ],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on June 12, 2025",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "I think its way over priced, won&#39;t be buying again, almost 20 dollars for this, not worth it, also has a really odd texture.",
+   "Title": "Not worth price"
+  },
+  {
+   "Author": "Robert Anderson",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [
+    "https://m.media-amazon.com/images/I/71w-tNmDJRL.jpg"
+   ],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on June 25, 2025",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "Do not recommend. This bag is TINY. Spend your hard earned money elsewhere.",
+   "Title": "TINY Bag!"
+  },
+  {
+   "Author": "Sophia",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on September 21, 2024",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "Every time we buy this salt, although delicious, it always comes with humidity and it sticks together. It&#39;s also WAY overpriced. Maybe even price gauging?",
+   "Title": "Sticky and Clumpy"
+  },
+  {
+   "Author": "Whitney McKay",
+   "HelpfulVotes": 1,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on July 10, 2024",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "I’m sorry I can’t justify paying this much for how tiny this package is. After purchasing I didn’t realize how little salt for $15 is in the tiny pouch.",
+   "Title": "Too small overpriced"
+  },
+  {
+   "Author": "Blanca ",
+   "HelpfulVotes": 1,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on January 7, 2023",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "It&#39;s beautiful, flaky, and I bought it for the purported cleanliness of it, but I wish I had a realistic way to fathom how impossibly small an amount you get for $18. It&#39;s a palm sized package basically.",
+   "Title": "I wish it was returnable."
+  },
+  {
+   "Author": "bigjim",
+   "HelpfulVotes": 1,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on September 19, 2016",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "ok but not worth the $$$",
+   "Title": "too Much $$$$$"
+  },
+  {
+   "Author": "booknut",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": false,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on April 25, 2025",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "extremely expensvie for 4 oz stores selling 1 lb for $25",
+   "Title": "WOW - Pricey"
+  }
+ ]
+}

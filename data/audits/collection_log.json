@@ -56,6 +56,668 @@
     }
    ],
    "finished_at": "2026-10-11T04:57:48.984862+00:00"
+  },
+  {
+   "started_at": "2026-10-11T05:15:21.129929+00:00",
+   "method": "Woot review endpoint via mrlong0129/amazon-review-scraper fetch_reviews()",
+   "products": [
+    {
+     "competitor": "Maldon Salt",
+     "asin": "B00017028M",
+     "preflight": {
+      "ok": true,
+      "status": 200
+     },
+     "combos": [
+      {
+       "star": 5,
+       "sort": 0,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 5,
+       "sort": 1,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 5,
+       "sort": 2,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 5,
+       "sort": 3,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 4,
+       "sort": 0,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 4,
+       "sort": 1,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 4,
+       "sort": 2,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 4,
+       "sort": 3,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 3,
+       "sort": 0,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 3,
+       "sort": 1,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 3,
+       "sort": 2,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 3,
+       "sort": 3,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 2,
+       "sort": 0,
+       "returned": 62,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 1,
+       "returned": 62,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 2,
+       "returned": 62,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 3,
+       "returned": 62,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 0,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 1,
+       "sort": 1,
+       "returned": 80,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 2,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 1,
+       "sort": 3,
+       "returned": 100,
+       "hit_cap": true
+      }
+     ],
+     "raw_returned_total": 1828
+    },
+    {
+     "competitor": "Jacobsen Salt Co.",
+     "asin": "B01M32JS5F",
+     "preflight": {
+      "ok": true,
+      "status": 200
+     },
+     "combos": [
+      {
+       "star": 5,
+       "sort": 0,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 5,
+       "sort": 1,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 5,
+       "sort": 2,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 5,
+       "sort": 3,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 4,
+       "sort": 0,
+       "returned": 15,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 1,
+       "returned": 15,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 2,
+       "returned": 15,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 3,
+       "returned": 15,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 0,
+       "returned": 13,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 1,
+       "returned": 13,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 2,
+       "returned": 13,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 3,
+       "returned": 13,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 0,
+       "returned": 8,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 1,
+       "returned": 8,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 2,
+       "returned": 8,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 3,
+       "returned": 8,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 0,
+       "returned": 16,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 1,
+       "returned": 16,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 2,
+       "returned": 16,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 3,
+       "returned": 16,
+       "hit_cap": false
+      }
+     ],
+     "raw_returned_total": 608
+    },
+    {
+     "competitor": "SaltWorks",
+     "asin": "B077NRHK1F",
+     "preflight": {
+      "ok": true,
+      "status": 200
+     },
+     "combos": [
+      {
+       "star": 5,
+       "sort": 0,
+       "returned": 28,
+       "hit_cap": false
+      },
+      {
+       "star": 5,
+       "sort": 1,
+       "returned": 28,
+       "hit_cap": false
+      },
+      {
+       "star": 5,
+       "sort": 2,
+       "returned": 28,
+       "hit_cap": false
+      },
+      {
+       "star": 5,
+       "sort": 3,
+       "returned": 28,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 0,
+       "returned": 3,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 1,
+       "returned": 3,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 2,
+       "returned": 3,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 3,
+       "returned": 3,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 0,
+       "returned": 2,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 1,
+       "returned": 2,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 2,
+       "returned": 2,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 3,
+       "returned": 2,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 0,
+       "returned": 1,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 1,
+       "returned": 1,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 2,
+       "returned": 1,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 3,
+       "returned": 1,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 0,
+       "returned": 6,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 1,
+       "returned": 6,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 2,
+       "returned": 6,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 3,
+       "returned": 0,
+       "hit_cap": false
+      }
+     ],
+     "raw_returned_total": 154
+    },
+    {
+     "competitor": "The Spice Lab",
+     "asin": "B0030MZMIK",
+     "preflight": {
+      "ok": true,
+      "status": 200
+     },
+     "combos": [
+      {
+       "star": 5,
+       "sort": 0,
+       "returned": 35,
+       "hit_cap": false
+      },
+      {
+       "star": 5,
+       "sort": 1,
+       "returned": 30,
+       "hit_cap": false
+      },
+      {
+       "star": 5,
+       "sort": 2,
+       "returned": 35,
+       "hit_cap": false
+      },
+      {
+       "star": 5,
+       "sort": 3,
+       "returned": 35,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 0,
+       "returned": 5,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 1,
+       "returned": 5,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 2,
+       "returned": 5,
+       "hit_cap": false
+      },
+      {
+       "star": 4,
+       "sort": 3,
+       "returned": 5,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 0,
+       "returned": 0,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 1,
+       "returned": 0,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 2,
+       "returned": 0,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 3,
+       "returned": 0,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 0,
+       "returned": 1,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 1,
+       "returned": 1,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 2,
+       "returned": 1,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 3,
+       "returned": 1,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 0,
+       "returned": 0,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 1,
+       "returned": 0,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 2,
+       "returned": 0,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 3,
+       "returned": 0,
+       "hit_cap": false
+      }
+     ],
+     "raw_returned_total": 159
+    },
+    {
+     "competitor": "Redmond Real Salt",
+     "asin": "B071FNYFWW",
+     "preflight": {
+      "ok": true,
+      "status": 200
+     },
+     "combos": [
+      {
+       "star": 5,
+       "sort": 0,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 5,
+       "sort": 1,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 5,
+       "sort": 2,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 5,
+       "sort": 3,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 4,
+       "sort": 0,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 4,
+       "sort": 1,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 4,
+       "sort": 2,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 4,
+       "sort": 3,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 3,
+       "sort": 0,
+       "returned": 94,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 1,
+       "returned": 94,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 2,
+       "returned": 94,
+       "hit_cap": false
+      },
+      {
+       "star": 3,
+       "sort": 3,
+       "returned": 94,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 0,
+       "returned": 69,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 1,
+       "returned": 69,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 2,
+       "returned": 69,
+       "hit_cap": false
+      },
+      {
+       "star": 2,
+       "sort": 3,
+       "returned": 69,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 0,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 1,
+       "sort": 1,
+       "returned": 60,
+       "hit_cap": false
+      },
+      {
+       "star": 1,
+       "sort": 2,
+       "returned": 100,
+       "hit_cap": true
+      },
+      {
+       "star": 1,
+       "sort": 3,
+       "returned": 100,
+       "hit_cap": true
+      }
+     ],
+     "raw_returned_total": 1812
+    }
+   ],
+   "finished_at": "2026-10-11T05:21:40.566164+00:00"
   }
  ]
 }

@@ -3,15 +3,27 @@
 BYU STRAT 560 — review-derived Net Promoter Score for five specialty-salt competitors on Amazon US,
 and a "Where Should Silk Road Salts Compete?" startup analysis.
 
-## Current data status: NO REVIEWS COLLECTED (blocked)
+## Current data status (live collection 2026-10-11)
 
-The build environment's network policy denies `www.woot.com` and `www.amazon.com` (HTTP 403 at the egress
-proxy; logged in `data/audits/collection_log.json`). No reviews were fabricated or substituted, so every
-score shows **N/A** and no startup conclusion is drawn. Everything downstream is built and tested and will
-populate automatically once genuine reviews exist:
+1,264 distinct Amazon US written reviews retrieved through the Woot review endpoint (`make collect`), all traceable to
+`data/raw/{ASIN}/combo_s*_o*.json`. The endpoint caps each star-filter x sort query at 100 reviews (~110-125 distinct
+per star after four sort orders):
+
+| Competitor | n | Capped star buckets | Treatment |
+|---|---|---|---|
+| The Spice Lab | 41 | none | ranked; below 50-review target |
+| Jacobsen Salt Co. | 175 | 5★ | ranked; NPS is a lower bound |
+| SaltWorks | 40 | none | ranked; below 50-review target |
+| Maldon Salt | 511 | 5/4/3/1★ | **not ranked**: star mix set by the cap, NPS not comparable |
+| Redmond Real Salt | 497 | 5/4/1★ | **not ranked**: star mix set by the cap, NPS not comparable |
+
+Not-comparable samples keep their sample NPS in tables (for transparency) but are excluded from ranks, charts and the
+wedge test (`sample_validity` in `pipeline/analyze.py`). No alternative ASIN was found for SaltWorks or The Spice Lab
+(see `low_n_investigation` in `pipeline/products.py`). amazon.com remains blocked, so the true star distributions
+cannot be used to reweight.
 
 ```bash
-make collect   # needs network access to www.woot.com
+make collect   # live retrieval (needs network access to www.woot.com)
 make all       # normalize -> analyze -> charts/PDF -> tests
 ```
 
@@ -33,7 +45,7 @@ Alternative: put manually transcribed public reviews in `data/raw/manual/*.csv`
 Scoring: 5★ Promoter, 4★ Passive, 1–3★ Detractor; NPS = %P − %D at full precision, rounded half away
 from zero. Alternative: 4–5★ Promoter. Zero reviews → N/A. Ranks use displayed NPS; ties share a rank.
 
-## Competitor products (ASINs are search-corroborated candidates; live listing not reachable from the build)
+## Competitor products (ASINs search-corroborated; reviews retrieved and spot-checked against each product)
 
 | Competitor | ASIN | Product |
 |---|---|---|

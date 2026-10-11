@@ -1,0 +1,25 @@
+{
+ "asin": "B0030MZMIK",
+ "star_filter": 2,
+ "sort": 0,
+ "fetched_at": "2026-10-11T05:19:17.330201+00:00",
+ "endpoint": "https://www.woot.com/review/Reviews/B0030MZMIK",
+ "reviews": [
+  {
+   "Author": "LWS",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on November 9, 2019",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "I have always loved the sea salt I&#39;ve gotten from Spice Lab but this one was terrible! Finishing salt shouldn&#39;t be this hard so it was a big disappointment !",
+   "Title": "It&#39;s so coarse it almost cuts your fingers trying to use it!"
+  }
+ ]
+}

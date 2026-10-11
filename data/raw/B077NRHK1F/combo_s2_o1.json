@@ -1,0 +1,25 @@
+{
+ "asin": "B077NRHK1F",
+ "star_filter": 2,
+ "sort": 1,
+ "fetched_at": "2026-10-11T05:18:38.931716+00:00",
+ "endpoint": "https://www.woot.com/review/Reviews/B077NRHK1F",
+ "reviews": [
+  {
+   "Author": "LMT",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 2,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on July 11, 2020",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "too soft/lightweight for use in grinder. very light flavor",
+   "Title": "dainty flakes."
+  }
+ ]
+}

@@ -1,0 +1,41 @@
+{
+ "asin": "B077NRHK1F",
+ "star_filter": 3,
+ "sort": 0,
+ "fetched_at": "2026-10-11T05:18:36.839237+00:00",
+ "endpoint": "https://www.woot.com/review/Reviews/B077NRHK1F",
+ "reviews": [
+  {
+   "Author": "t8989",
+   "HelpfulVotes": 2,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 3,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on July 30, 2020",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "The Kosjer flake salt was not as much or a flake as I thought it would be. It looked bigger in the picture. Perhaps the Australian is a bigger flake. The packaging is great. Very easy to use and store. Wish they were better pictures of the white salt as it is hard to see.",
+   "Title": "Not as large flakes as I thought."
+  },
+  {
+   "Author": "David Stuart",
+   "HelpfulVotes": 0,
+   "Id": null,
+   "ImageUrls": [],
+   "IsVerifiedPurchase": true,
+   "IsVineReview": false,
+   "MarketplaceId": null,
+   "MediaUrls": [],
+   "OverallRating": 3,
+   "SubmissionDate": "/Date(0)/",
+   "OriginDescription": "Reviewed in the United States on December 25, 2019",
+   "SubmissionDateStr": "January 01, 1970",
+   "Text": "Because of the container the flakes get broken up. They are not big flakes but a bunch of tiny bits",
+   "Title": "It&#39;s ok"
+  }
+ ]
+}

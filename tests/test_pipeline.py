@@ -1,4 +1,5 @@
 """Unit + integrity tests. Synthetic data here is for testing only and never written to data/."""
+import html
 import json
 import sys
 from pathlib import Path
@@ -140,7 +141,7 @@ def test_production_records_trace_to_raw():
             path = ROOT / ref.split(":")[0]
             assert path.is_file() and str(path).startswith(str(ROOT / "data/raw"))
             if path.suffix == ".json":
-                texts = {x.get("Text") for x in json.loads(path.read_text())["reviews"]}
+                texts = {html.unescape(x.get("Text") or "") for x in json.loads(path.read_text())["reviews"]}
                 assert r["review_text"] in texts or r["review_text"] is None
 
 
@@ -158,3 +159,22 @@ def test_analysis_matches_engine_recompute():
     audit = json.loads((ROOT / "data/audits/audit.json").read_text())
     for c in a["competitors"]:
         assert audit["per_competitor"][c["competitor"]]["final_analyzed_n"] == c["n"]
+
+
+def test_cap_validity_excludes_capped_samples_from_ranks(tmp_path):
+    log = tmp_path / "log.json"
+    combos = lambda counts: [{"star": s, "sort": o, "returned": n} for s, n in counts.items() for o in range(4)]
+    log.write_text(json.dumps({"runs": [{"products": [
+        {"asin": PRODUCTS[0]["asin"], "combos": combos({5: 100, 4: 100, 3: 100, 2: 40, 1: 100})},
+        {"asin": PRODUCTS[1]["asin"], "combos": combos({5: 100, 4: 9, 3: 5, 2: 2, 1: 7})},
+        {"asin": PRODUCTS[2]["asin"], "combos": combos({5: 20, 4: 3, 3: 1, 2: 1, 1: 2})}]}]}))
+    caps = analyze.load_caps(log)
+    assert caps[PRODUCTS[0]["asin"]]["capped_stars"] == [5, 4, 3, 1]
+    assert [analyze.sample_validity(caps[p["asin"]]["capped_stars"]) for p in PRODUCTS[:3]] == ["capped_mixed", "promoters_capped", "complete"]
+    recs = [{"competitor": p["competitor"], "rating": r, "review_id": f"{p['asin']}{i}", "title": "", "review_text": "x",
+             "verified_purchase": True, "review_date": "2025-01-01", "collection_source": "s", "verification_status": "source_retrieved"}
+            for p in PRODUCTS for i, r in enumerate([5, 5, 4, 1])]
+    a = analyze.build(recs, caps=caps)
+    by = {c["competitor"]: c for c in a["competitors"]}
+    assert by[PRODUCTS[0]["competitor"]]["rank"] is None and by[PRODUCTS[0]["competitor"]]["nps"] == 25
+    assert by[PRODUCTS[1]["competitor"]]["rank"] == 1 and PRODUCTS[0]["competitor"] in a["wedge"]["excluded_not_comparable"]

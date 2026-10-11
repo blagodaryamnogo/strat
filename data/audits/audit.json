@@ -1,69 +1,122 @@
 {
- "generated_at": "2026-10-11T05:04:10.027070+00:00",
+ "generated_at": "2026-10-11T05:26:19.141436+00:00",
  "per_competitor": {
   "Maldon Salt": {
    "asin": "B00017028M",
-   "raw_records_retrieved": 0,
-   "accepted_unique": 0,
-   "duplicates_removed": 0,
+   "raw_records_retrieved": 1828,
+   "accepted_unique": 511,
+   "duplicates_removed": 1317,
    "invalid_rejected": 0,
-   "missing_text": 0,
+   "missing_text": 3,
    "missing_date": 0,
    "independently_matched": 0,
    "excluded_from_scoring": 0,
-   "final_analyzed_n": 0
+   "final_analyzed_n": 511
   },
   "Jacobsen Salt Co.": {
    "asin": "B01M32JS5F",
-   "raw_records_retrieved": 0,
-   "accepted_unique": 0,
-   "duplicates_removed": 0,
+   "raw_records_retrieved": 608,
+   "accepted_unique": 175,
+   "duplicates_removed": 433,
    "invalid_rejected": 0,
    "missing_text": 0,
    "missing_date": 0,
    "independently_matched": 0,
    "excluded_from_scoring": 0,
-   "final_analyzed_n": 0
+   "final_analyzed_n": 175
   },
   "SaltWorks": {
    "asin": "B077NRHK1F",
-   "raw_records_retrieved": 0,
-   "accepted_unique": 0,
-   "duplicates_removed": 0,
+   "raw_records_retrieved": 154,
+   "accepted_unique": 40,
+   "duplicates_removed": 114,
    "invalid_rejected": 0,
    "missing_text": 0,
    "missing_date": 0,
    "independently_matched": 0,
    "excluded_from_scoring": 0,
-   "final_analyzed_n": 0
+   "final_analyzed_n": 40
   },
   "The Spice Lab": {
    "asin": "B0030MZMIK",
-   "raw_records_retrieved": 0,
-   "accepted_unique": 0,
-   "duplicates_removed": 0,
+   "raw_records_retrieved": 159,
+   "accepted_unique": 41,
+   "duplicates_removed": 118,
    "invalid_rejected": 0,
    "missing_text": 0,
    "missing_date": 0,
    "independently_matched": 0,
    "excluded_from_scoring": 0,
-   "final_analyzed_n": 0
+   "final_analyzed_n": 41
   },
   "Redmond Real Salt": {
    "asin": "B071FNYFWW",
-   "raw_records_retrieved": 0,
-   "accepted_unique": 0,
-   "duplicates_removed": 0,
+   "raw_records_retrieved": 1812,
+   "accepted_unique": 497,
+   "duplicates_removed": 1315,
    "invalid_rejected": 0,
-   "missing_text": 0,
+   "missing_text": 1,
    "missing_date": 0,
    "independently_matched": 0,
    "excluded_from_scoring": 0,
-   "final_analyzed_n": 0
+   "final_analyzed_n": 497
   }
  },
- "uncertain_duplicates_flagged": [],
+ "uncertain_duplicates_flagged": [
+  {
+   "raw_ref": "data/raw/B00017028M/combo_s5_o1.json",
+   "possible_duplicate_of": "srs-2fe0f661c039"
+  },
+  {
+   "raw_ref": "data/raw/B01M32JS5F/combo_s5_o1.json",
+   "possible_duplicate_of": "srs-1fedd7fe22bf"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s4_o0.json",
+   "possible_duplicate_of": "srs-1ade9f5dfcaf"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s4_o0.json",
+   "possible_duplicate_of": "srs-1ade9f5dfcaf"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s4_o0.json",
+   "possible_duplicate_of": "srs-55f9da6db783"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s4_o0.json",
+   "possible_duplicate_of": "srs-1ade9f5dfcaf"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s4_o0.json",
+   "possible_duplicate_of": "srs-1ade9f5dfcaf"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s4_o0.json",
+   "possible_duplicate_of": "srs-112f3068659b"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s5_o0.json",
+   "possible_duplicate_of": "srs-73857acb8da2"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s5_o0.json",
+   "possible_duplicate_of": "srs-1ecf0116c993"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s5_o0.json",
+   "possible_duplicate_of": "srs-eb6ae2ded233"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s5_o0.json",
+   "possible_duplicate_of": "srs-88f390a01c8e"
+  },
+  {
+   "raw_ref": "data/raw/B071FNYFWW/combo_s5_o1.json",
+   "possible_duplicate_of": "srs-88f390a01c8e"
+  }
+ ],
  "rejected": [],
  "star_filter_mismatches": 0,
- "exact_duplicates_removed_total": 0
+ "exact_duplicates_removed_total": 3297
 }

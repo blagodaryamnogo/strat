@@ -3,6 +3,9 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (v) => (v == null ? "N/A" : v.toFixed(1) + "%");
 const sgn = (v) => (v == null ? "N/A" : (v > 0 ? "+" : "") + v);
+const capNote = (c) => !c.capped_stars || !c.capped_stars.length ? "" : c.comparable === false
+  ? `<br><span class="muted"><b>Not ranked:</b> ${c.capped_stars.join("/")}★ buckets capped at retrieval; star mix reflects the cap, not customers</span>`
+  : `<br><span class="muted">${c.capped_stars.join("/")}★ bucket capped at retrieval: NPS is a lower bound</span>`;
 const bucket = (r) => (r === 5 ? "promoter" : r === 4 ? "passive" : "detractor");
 let A, R, sortKey = "nps", sortDir = -1, method = "baseline";
 
@@ -38,7 +41,7 @@ function renderTable() {
     return (x > y ? 1 : x < y ? -1 : 0) * sortDir;
   });
   $("#comp-table tbody").innerHTML = rows.map((c) => `<tr data-c="${esc(c.competitor)}">
-    <td>${esc(c.competitor)}</td><td>${esc(c.product_name)}<br><span class="muted">ASIN ${esc(c.asin)}</span></td><td class="n">${c.n}</td>
+    <td>${esc(c.competitor)}</td><td>${esc(c.product_name)}<br><span class="muted">ASIN ${esc(c.asin)}</span>${capNote(c)}</td><td class="n">${c.n}</td>
     <td class="n">${pct(c.promoter_pct)}</td><td class="n">${pct(c.passive_pct)}</td><td class="n">${pct(c.detractor_pct)}</td>
     <td class="n" data-nps><b>${sgn(c.nps)}</b></td><td class="n">${sgn(c.alt_nps)}</td>
     <td><a href="${esc(c.listing_url)}" target="_blank" rel="noopener">Amazon listing</a></td></tr>`).join("");
@@ -51,7 +54,8 @@ function renderTable() {
         `Promoters ${c.promoters}/${c.n} = ${c.promoter_pct.toFixed(4)}%   Passives ${c.passives}/${c.n} = ${c.passive_pct.toFixed(4)}%   Detractors ${c.detractors}/${c.n} = ${c.detractor_pct.toFixed(4)}%\n` +
         `Baseline NPS = ${c.promoter_pct.toFixed(4)} - ${c.detractor_pct.toFixed(4)} = ${c.nps_exact.toFixed(4)} -> ${sgn(c.nps)}   (95% CI ${c.ci95_low.toFixed(1)} to ${c.ci95_high.toFixed(1)})\n` +
         `Alternative NPS = ${c.alt_nps_exact.toFixed(4)} -> ${sgn(c.alt_nps)}   change = ${c.delta_exact.toFixed(4)} = 4-star share` +
-        (c.below_min_n ? `\nNote: n below the ${A.min_n_target}-review target.` : "");
+        (c.below_min_n ? `\nNote: n below the ${A.min_n_target}-review target.` : "") +
+        (c.capped_stars && c.capped_stars.length ? `\nRetrieval cap hit in ${c.capped_stars.join("/")}★ bucket(s): ${c.comparable === false ? "NPS not comparable, not ranked." : "NPS is a lower bound."}` : "");
   }));
 }
 

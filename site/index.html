@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Silk Road Salts | Loyalty Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Silk Road Salts <span>| Loyalty Intelligence</span></h1>
+    <nav>
+      <a href="#overview">Overview</a><a href="#competitors">Competitor Analysis</a><a href="#method">Methodology &amp; Sensitivity</a>
+      <a href="#explorer">Review Explorer</a><a href="#opportunity">Market Opportunity</a><a href="#export">Report &amp; Export</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <div id="status"></div>
+
+  <section id="overview">
+    <h2>Overview</h2>
+    <div class="cards" id="kpis"></div>
+    <img id="chart-main" class="chart" src="charts/nps_baseline.svg" alt="Ranked review-derived NPS bar chart">
+    <p class="muted" id="source-line"></p>
+  </section>
+
+  <section id="competitors">
+    <h2>Competitor Analysis</h2>
+    <p class="muted">Click a column header to sort. Click a row for the calculation.</p>
+    <table id="comp-table"><thead><tr>
+      <th data-k="competitor">Competitor</th><th data-k="product_name">Product</th><th data-k="n">Review Count</th>
+      <th data-k="promoter_pct">Promoter %</th><th data-k="passive_pct">Passive %</th><th data-k="detractor_pct">Detractor %</th>
+      <th data-k="nps">Baseline NPS</th><th data-k="alt_nps">Alternative NPS</th><th>Source</th></tr></thead><tbody></tbody></table>
+    <pre id="calc" class="calc"></pre>
+  </section>
+
+  <section id="method">
+    <h2>Methodology &amp; Sensitivity</h2>
+    <p><b>Baseline:</b> 5&#9733; = Promoter, 4&#9733; = Passive, 1&ndash;3&#9733; = Detractor. NPS = %Promoters &minus; %Detractors (full precision, then rounded).
+      Five stars is the clearest written expression of enthusiasm; four-star reviews often carry reservations; 1&ndash;3 stars signal dissatisfaction or a materially qualified experience.
+      These boundaries are judgment calls. Results are a <b>Review-Derived NPS</b>, not survey NPS.</p>
+    <div class="toggle" role="group" aria-label="Scoring method">
+      <button id="m-base" class="on" data-m="baseline">Baseline (4&#9733; = Passive)</button>
+      <button id="m-alt" data-m="alternative">Alternative (4&#9733; = Promoter)</button>
+    </div>
+    <img id="chart-sens" class="chart" src="charts/nps_baseline.svg" alt="NPS under selected method">
+    <table id="sens-table"><thead><tr><th>Competitor</th><th>Baseline NPS</th><th>Alternative NPS</th><th>Change (exact pts)</th><th>4&#9733; share</th><th>Rank base &rarr; alt</th></tr></thead><tbody></tbody></table>
+    <h3>Selection bias &amp; limitations</h3>
+    <p><b>Online reviews overrepresent customers with unusually positive or negative experiences, creating a potentially bimodal distribution that exaggerates apparent customer polarization relative to the broader customer base.</b></p>
+    <ul id="limits"></ul>
+  </section>
+
+  <section id="explorer">
+    <h2>Review Explorer</h2>
+    <div id="excerpts"></div>
+    <div class="filters">
+      <select id="f-comp"><option value="">All competitors / products</option></select>
+      <select id="f-star"><option value="">All stars</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select>
+      <select id="f-bucket"><option value="">All buckets</option><option value="promoter">Promoter</option><option value="passive">Passive</option><option value="detractor">Detractor</option></select>
+      <label>From <input type="date" id="f-from"></label><label>To <input type="date" id="f-to"></label>
+      <select id="f-theme"><option value="">All themes</option></select>
+    </div>
+    <p class="muted" id="r-count"></p>
+    <div id="reviews"></div>
+  </section>
+
+  <section id="opportunity">
+    <h2>Where Should Silk Road Salts Compete?</h2>
+    <img class="chart" src="charts/scatter.svg" alt="Loyalty versus review volume scatterplot">
+    <p class="muted" id="vol-note"></p>
+    <div id="startup"></div>
+  </section>
+
+  <section id="export">
+    <h2>Report &amp; Export</h2>
+    <p><a class="btn" id="pdf-link" href="report.pdf" download="SilkRoadSalts_Loyalty_Analysis.pdf">Export Analysis as PDF</a></p>
+    <p><a href="reviews.csv" download>Reviews (CSV)</a> &middot; <a href="reviews.json" download>Reviews (JSON)</a> &middot; <a href="analysis.json" download>Analysis (JSON)</a></p>
+    <p class="muted">The PDF, charts and this page are generated from the same analysis.json by the Python pipeline.</p>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

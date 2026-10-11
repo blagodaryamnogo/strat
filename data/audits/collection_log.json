@@ -1,0 +1,61 @@
+{
+ "runs": [
+  {
+   "started_at": "2026-10-11T04:57:47.816989+00:00",
+   "method": "Woot review endpoint via mrlong0129/amazon-review-scraper fetch_reviews()",
+   "products": [
+    {
+     "competitor": "Maldon Salt",
+     "asin": "B00017028M",
+     "preflight": {
+      "ok": false,
+      "error": "URLError: <urlopen error Tunnel connection failed: 403 Forbidden>"
+     },
+     "combos": [],
+     "note": "Not collected: endpoint unreachable. No substitute data created."
+    },
+    {
+     "competitor": "Jacobsen Salt Co.",
+     "asin": "B01M32JS5F",
+     "preflight": {
+      "ok": false,
+      "error": "URLError: <urlopen error Tunnel connection failed: 403 Forbidden>"
+     },
+     "combos": [],
+     "note": "Not collected: endpoint unreachable. No substitute data created."
+    },
+    {
+     "competitor": "SaltWorks",
+     "asin": "B077NRHK1F",
+     "preflight": {
+      "ok": false,
+      "error": "URLError: <urlopen error Tunnel connection failed: 403 Forbidden>"
+     },
+     "combos": [],
+     "note": "Not collected: endpoint unreachable. No substitute data created."
+    },
+    {
+     "competitor": "The Spice Lab",
+     "asin": "B0030MZMIK",
+     "preflight": {
+      "ok": false,
+      "error": "URLError: <urlopen error Tunnel connection failed: 403 Forbidden>"
+     },
+     "combos": [],
+     "note": "Not collected: endpoint unreachable. No substitute data created."
+    },
+    {
+     "competitor": "Redmond Real Salt",
+     "asin": "B071FNYFWW",
+     "preflight": {
+      "ok": false,
+      "error": "URLError: <urlopen error Tunnel connection failed: 403 Forbidden>"
+     },
+     "combos": [],
+     "note": "Not collected: endpoint unreachable. No substitute data created."
+    }
+   ],
+   "finished_at": "2026-10-11T04:57:48.984862+00:00"
+  }
+ ]
+}

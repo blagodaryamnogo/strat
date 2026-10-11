@@ -6,6 +6,8 @@ const sgn = (v) => (v == null ? "N/A" : (v > 0 ? "+" : "") + v);
 const capNote = (c) => !c.capped_stars || !c.capped_stars.length ? "" : c.comparable === false
   ? `<br><span class="muted"><b>Not ranked:</b> ${c.capped_stars.join("/")}★ buckets capped at retrieval; star mix reflects the cap, not customers</span>`
   : `<br><span class="muted">${c.capped_stars.join("/")}★ bucket capped at retrieval: NPS is a lower bound</span>`;
+const hl = (c) => c.headline || { nps: c.nps, nps_exact: c.nps_exact, alt_nps: c.alt_nps, alt_nps_exact: c.alt_nps_exact, volume: c.n, comparable: c.nps != null };
+const isHist = () => A.primary_metric === "histogram";
 const bucket = (r) => (r === 5 ? "promoter" : r === 4 ? "passive" : "detractor");
 let A, R, sortKey = "nps", sortDir = -1, method = "baseline";
 
@@ -16,17 +18,21 @@ Promise.all([fetch("analysis.json").then((r) => r.json()), fetch("reviews.json")
 function init(startup) {
   if (A.status !== "ok")
     $("#status").innerHTML = `<div class="alert"><b>Data status: ${esc(A.status)}.</b> Amazon US review collection was blocked in the build environment (HTTP 403 for www.woot.com). No reviews were fabricated; unscored values show N/A. See the collection log in the repository.</div>`;
-  const scored = A.competitors.filter((c) => c.nps != null);
-  const top = scored[0];
+  const top = A.competitors.find((c) => c.rank === 1);
   $("#kpis").innerHTML = [
     ["Competitors", A.competitors.length], ["Reviews analyzed", A.total_reviews],
-    ["Highest baseline NPS", top ? `${sgn(top.nps)} <small>${esc(top.competitor)}</small>` : "N/A"],
+    ["Highest baseline NPS" + (isHist() ? " (Amazon histogram)" : ""), top ? `${sgn(hl(top).nps)} <small>${esc(top.competitor)}</small>` : "N/A"],
     ["Wedge status", esc(A.wedge.status.replace(/_/g, " "))],
   ].map(([k, v]) => `<div class="card"><b>${v}</b><span>${k}</span></div>`).join("");
   $("#source-line").textContent = `Source: Amazon US written reviews via Woot's public review endpoint (mrlong0129/amazon-review-scraper). Analysis generated ${A.generated_at.slice(0, 10)}. ${A.comparability_note}`;
   $("#vol-note").textContent = "X-axis: " + A.volume_metric + ".";
   $("#limits").innerHTML = (A.limitations || []).map((l) => `<li>${esc(l)}</li>`).join("");
   $("#startup").innerHTML = startup;
+  if (isHist()) {
+    $("#comp-table th[data-k='nps']").textContent = "Sample NPS"; $("#comp-table th[data-k='alt_nps']").textContent = "Sample alt. NPS";
+  }
+  if (isHist()) $("#comp-table thead tr th:last-child").insertAdjacentHTML("beforebegin", `<th data-k="hist_sort">Amazon histogram NPS</th>`);
+  A.competitors.forEach((c) => { c.hist_sort = c.histogram ? c.histogram.nps : null; });
   renderTable(); renderSens(); initExplorer();
   document.querySelectorAll("#comp-table th[data-k]").forEach((th) => th.addEventListener("click", () => {
     sortDir = sortKey === th.dataset.k ? -sortDir : -1; sortKey = th.dataset.k; renderTable();
@@ -43,7 +49,7 @@ function renderTable() {
   $("#comp-table tbody").innerHTML = rows.map((c) => `<tr data-c="${esc(c.competitor)}">
     <td>${esc(c.competitor)}</td><td>${esc(c.product_name)}<br><span class="muted">ASIN ${esc(c.asin)}</span>${capNote(c)}</td><td class="n">${c.n}</td>
     <td class="n">${pct(c.promoter_pct)}</td><td class="n">${pct(c.passive_pct)}</td><td class="n">${pct(c.detractor_pct)}</td>
-    <td class="n" data-nps><b>${sgn(c.nps)}</b></td><td class="n">${sgn(c.alt_nps)}</td>
+    <td class="n" data-nps><b>${sgn(c.nps)}</b></td><td class="n">${sgn(c.alt_nps)}</td>${isHist() ? `<td class="n" data-hist><b>${sgn(c.histogram.nps)}</b> <span class="muted">(${c.histogram.total_ratings.toLocaleString("en-US")} ratings)</span></td>` : ""}
     <td><a href="${esc(c.listing_url)}" target="_blank" rel="noopener">Amazon listing</a></td></tr>`).join("");
   document.querySelectorAll("#comp-table tbody tr").forEach((tr) => tr.addEventListener("click", (e) => {
     if (e.target.tagName === "A") return;
@@ -54,6 +60,8 @@ function renderTable() {
         `Promoters ${c.promoters}/${c.n} = ${c.promoter_pct.toFixed(4)}%   Passives ${c.passives}/${c.n} = ${c.passive_pct.toFixed(4)}%   Detractors ${c.detractors}/${c.n} = ${c.detractor_pct.toFixed(4)}%\n` +
         `Baseline NPS = ${c.promoter_pct.toFixed(4)} - ${c.detractor_pct.toFixed(4)} = ${c.nps_exact.toFixed(4)} -> ${sgn(c.nps)}   (95% CI ${c.ci95_low.toFixed(1)} to ${c.ci95_high.toFixed(1)})\n` +
         `Alternative NPS = ${c.alt_nps_exact.toFixed(4)} -> ${sgn(c.alt_nps)}   change = ${c.delta_exact.toFixed(4)} = 4-star share` +
+        (c.histogram ? `\nAmazon histogram (recorded ${c.histogram.recorded_on}): 5/4/3/2/1 = ${[5, 4, 3, 2, 1].map((k) => c.histogram.pct[k] + "%").join(" / ")} of ${c.histogram.total_ratings} ratings` +
+          ` -> NPS ${c.histogram.nps_exact.toFixed(2)} -> ${sgn(c.histogram.nps)} (+/-2 pts rounding)` : "") +
         (c.below_min_n ? `\nNote: n below the ${A.min_n_target}-review target.` : "") +
         (c.capped_stars && c.capped_stars.length ? `\nRetrieval cap hit in ${c.capped_stars.join("/")}★ bucket(s): ${c.comparable === false ? "NPS not comparable, not ranked." : "NPS is a lower bound."}` : "");
   }));
@@ -63,10 +71,11 @@ function renderSens() {
   document.querySelectorAll(".toggle button").forEach((b) => b.classList.toggle("on", b.dataset.m === method));
   $("#chart-sens").src = method === "baseline" ? "charts/nps_baseline.svg" : "charts/nps_alternative.svg";
   const alt = method === "alternative";
-  $("#sens-table tbody").innerHTML = A.competitors.map((c) => `<tr><td>${esc(c.competitor)}</td>
-    <td class="n ${alt ? "" : "hl"}">${sgn(c.nps)}</td><td class="n ${alt ? "hl" : ""}">${sgn(c.alt_nps)}</td>
-    <td class="n">${c.delta_exact == null ? "N/A" : "+" + c.delta_exact.toFixed(1)}</td><td class="n">${pct(c.four_star_pct)}</td>
-    <td class="n">${c.rank ?? "–"} → ${c.alt_rank ?? "–"}${c.rank_change ? ` <b>(${c.rank_change > 0 ? "up" : "down"} ${Math.abs(c.rank_change)})</b>` : ""}</td></tr>`).join("");
+  $("#sens-table tbody").innerHTML = A.competitors.map((c) => { const h = hl(c), d = h.nps_exact == null ? null : h.alt_nps_exact - h.nps_exact;
+    return `<tr><td>${esc(c.competitor)}</td>
+    <td class="n ${alt ? "" : "hl"}">${sgn(h.nps)}</td><td class="n ${alt ? "hl" : ""}">${sgn(h.alt_nps)}</td>
+    <td class="n">${d == null ? "N/A" : "+" + d.toFixed(1)}</td><td class="n">${pct(isHist() ? c.histogram.passive_pct : c.four_star_pct)}</td>
+    <td class="n">${c.rank ?? "–"} → ${c.alt_rank ?? "–"}${c.rank_change ? ` <b>(${c.rank_change > 0 ? "up" : "down"} ${Math.abs(c.rank_change)})</b>` : ""}</td></tr>`; }).join("");
 }
 
 function reviewCard(r, label) {

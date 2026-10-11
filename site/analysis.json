@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-11T05:26:19.393642+00:00",
+ "generated_at": "2026-10-11T05:38:49.693887+00:00",
  "status": "ok",
  "total_reviews": 1264,
  "min_n_target": 50,
@@ -41,6 +41,7 @@
    ],
    "sample_validity": "complete",
    "comparable": true,
+   "histogram": null,
    "date_range": [
     "2010-04-09",
     "2023-05-19"
@@ -50,6 +51,15 @@
    ],
    "verification_counts": {
     "source_retrieved": 41
+   },
+   "headline": {
+    "source": "review_sample",
+    "nps": 83,
+    "nps_exact": 82.92682926829268,
+    "alt_nps": 95,
+    "alt_nps_exact": 95.1219512195122,
+    "volume": 41,
+    "comparable": true
    },
    "rank": 1,
    "alt_rank": 1,
@@ -92,6 +102,7 @@
    "uneven_stars": [],
    "sample_validity": "promoters_capped",
    "comparable": true,
+   "histogram": null,
    "date_range": [
     "2014-12-02",
     "2026-08-12"
@@ -101,6 +112,15 @@
    ],
    "verification_counts": {
     "source_retrieved": 175
+   },
+   "headline": {
+    "source": "review_sample",
+    "nps": 49,
+    "nps_exact": 49.14285714285714,
+    "alt_nps": 58,
+    "alt_nps_exact": 57.71428571428572,
+    "volume": 175,
+    "comparable": true
    },
    "rank": 2,
    "alt_rank": 2,
@@ -143,6 +163,7 @@
    ],
    "sample_validity": "complete",
    "comparable": true,
+   "histogram": null,
    "date_range": [
     "2019-01-02",
     "2026-04-10"
@@ -152,6 +173,15 @@
    ],
    "verification_counts": {
     "source_retrieved": 40
+   },
+   "headline": {
+    "source": "review_sample",
+    "nps": 48,
+    "nps_exact": 47.5,
+    "alt_nps": 55,
+    "alt_nps_exact": 55.0,
+    "volume": 40,
+    "comparable": true
    },
    "rank": 3,
    "alt_rank": 3,
@@ -199,6 +229,7 @@
    ],
    "sample_validity": "capped_mixed",
    "comparable": false,
+   "histogram": null,
    "date_range": [
     "2012-08-20",
     "2026-10-02"
@@ -208,6 +239,15 @@
    ],
    "verification_counts": {
     "source_retrieved": 511
+   },
+   "headline": {
+    "source": "review_sample",
+    "nps": -31,
+    "nps_exact": -30.919765166340515,
+    "alt_nps": -8,
+    "alt_nps_exact": -7.632093933463807,
+    "volume": 511,
+    "comparable": false
    },
    "rank": null,
    "alt_rank": null,
@@ -254,6 +294,7 @@
    ],
    "sample_validity": "capped_mixed",
    "comparable": false,
+   "histogram": null,
    "date_range": [
     "2012-05-17",
     "2026-10-08"
@@ -264,15 +305,27 @@
    "verification_counts": {
     "source_retrieved": 497
    },
+   "headline": {
+    "source": "review_sample",
+    "nps": -32,
+    "nps_exact": -32.3943661971831,
+    "alt_nps": -10,
+    "alt_nps_exact": -9.859154929577464,
+    "volume": 497,
+    "comparable": false
+   },
    "rank": null,
    "alt_rank": null,
    "rank_change": null
   }
  ],
+ "primary_metric": "review_sample",
+ "histogram_status": "not_entered",
+ "histogram_errors": [],
  "volume_metric": "Distinct written reviews retrieved and scored (NOT total Amazon ratings; marketplace totals could not be retrieved)",
  "wedge": {
   "status": "no_classic_wedge",
-  "rule": "volume >= median retrieved count AND baseline NPS < median NPS (comparable samples only)",
+  "rule": "volume >= median AND headline NPS < median NPS (comparable scores only)",
   "candidates": [],
   "excluded_not_comparable": [
    "Maldon Salt",

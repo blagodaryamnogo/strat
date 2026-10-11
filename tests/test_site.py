@@ -32,9 +32,7 @@ def serve(directory):
     return srv
 
 
-@pytest.fixture(scope="module")
-def synthetic_site(tmp_path_factory):
-    tmp = tmp_path_factory.mktemp("synthetic")
+def build_synthetic(tmp, hists=None):
     raw = tmp / "raw"
     mix = [(30, 10, 10), (20, 15, 15), (12, 3, 25), (45, 4, 1), (8, 8, 4)]  # TEST FIXTURE ONLY
     for p, (a, b, c) in zip(PRODUCTS, mix):
@@ -50,7 +48,7 @@ def synthetic_site(tmp_path_factory):
     finally:
         normalize.ROOT = orig
     proc = tmp / "processed"; proc.mkdir()
-    a = analyze.build(acc)
+    a = analyze.build(acc, hists=hists)
     (proc / "analysis.json").write_text(json.dumps(a)); (proc / "reviews.json").write_text(json.dumps(acc))
     (tmp / "r.csv").write_text("x\n")
     site = tmp / "site"; site.mkdir()
@@ -61,7 +59,22 @@ def synthetic_site(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def browser(synthetic_site):  # build PDF first: two sync_playwright loops cannot nest
+def synthetic_site(tmp_path_factory):
+    return build_synthetic(tmp_path_factory.mktemp("synthetic"))
+
+
+@pytest.fixture(scope="module")
+def synthetic_hist_site(tmp_path_factory):
+    # TEST FIXTURE ONLY: invented histograms to exercise the histogram-headline path
+    shapes = [(80, 10, 4, 2, 4), (70, 12, 6, 4, 8), (60, 15, 10, 5, 10), (85, 8, 3, 1, 3), (50, 20, 10, 8, 12)]
+    hists = {p["asin"]: {"pct": dict(zip((5, 4, 3, 2, 1), sh)), "pct_sum": sum(sh), "total_ratings": 100 * (i + 1) ** 3,
+                         "average_rating": None, "recorded_on": "2025-01-01", "recorded_by": "TEST FIXTURE", "notes": "", "raw_ref": "fixture"}
+             for i, (p, sh) in enumerate(zip(PRODUCTS, shapes))}
+    return build_synthetic(tmp_path_factory.mktemp("synthetic_hist"), hists)
+
+
+@pytest.fixture(scope="module")
+def browser(synthetic_site, synthetic_hist_site):  # build PDF first: two sync_playwright loops cannot nest
     with pw.sync_playwright() as p:
         b = p.chromium.launch(executable_path=report.CHROMIUM)
         yield b
@@ -93,12 +106,16 @@ def check_consistency(page, site, a):
     assert sens.count() == len(a["competitors"])
     for i, c in enumerate(a["competitors"]):
         cells = sens.nth(i).locator("td")
-        assert cells.nth(1).inner_text() == fmt(c["nps"]).replace("+0", "0") and cells.nth(2).inner_text() == fmt(c["alt_nps"]).replace("+0", "0")
+        h = c["headline"]
+        assert cells.nth(1).inner_text() == fmt(h["nps"]).replace("+0", "0") and cells.nth(2).inner_text() == fmt(h["alt_nps"]).replace("+0", "0")
+        if a["primary_metric"] == "histogram":
+            row = page.locator(f"#comp-table tbody tr[data-c='{c['competitor']}']")
+            assert row.locator("td[data-hist] b").inner_text() == fmt(c["histogram"]["nps"]).replace("+0", "0")
     # chart labels
     svg = (site / "charts/nps_baseline.svg").read_text()
     for c in a["competitors"]:
-        if c["nps"] is not None and c.get("comparable", True):
-            assert f">{c['nps']:+d}</text>" in svg
+        if c["headline"]["comparable"]:
+            assert f">{c['headline']['nps']:+d}</text>" in svg
         elif c["nps"] is not None:  # capped sample: named in the footnote, no bar
             assert f">{c['competitor']}</text>" not in svg and c["competitor"] in svg
     # PDF
@@ -109,7 +126,10 @@ def check_consistency(page, site, a):
     startup = (site / "startup.html").read_text()
     for c in a["competitors"]:
         if c["competitor"] in a["wedge"].get("candidates", []):
-            assert f"NPS {fmt(c['nps'])}" in startup
+            assert f"NPS {fmt(c['headline']['nps'])}" in startup
+    if a["primary_metric"] == "histogram":
+        for c in a["competitors"]:
+            assert re.search(rf"{re.escape(c['competitor'].split()[0])}.*?{re.escape(fmt(c['histogram']['nps']))}", text, re.S)
 
 
 def test_synthetic_consistency_and_ui(browser, synthetic_site):
@@ -140,6 +160,18 @@ def test_synthetic_consistency_and_ui(browser, synthetic_site):
     with page.expect_download() as d:
         page.click("#pdf-link")
     assert d.value.path().read_bytes()[:4] == b"%PDF"
+    assert not errors, errors
+    srv.shutdown()
+
+
+def test_synthetic_histogram_headline(browser, synthetic_hist_site):
+    site, a = synthetic_hist_site
+    assert a["primary_metric"] == "histogram" and all(c["rank"] for c in a["competitors"])
+    page, errors, srv = open_page(browser, site)
+    check_consistency(page, site, a)
+    assert page.locator("#comp-table th", has_text="Amazon histogram NPS").count() == 1
+    assert "Amazon histogram" in page.inner_text("#kpis")
+    assert 3 <= len(PdfReader(site / "report.pdf").pages) <= 4
     assert not errors, errors
     srv.shutdown()
 

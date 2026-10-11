@@ -53,26 +53,34 @@ def cap_note(c):
 
 def startup_text(a, reviews_by_id):
     """Returns list of (heading, html) blocks, generated from analysis values only."""
-    scored = [c for c in a["competitors"] if c["nps"] is not None and c.get("comparable", True)]
-    excl = [c for c in a["competitors"] if c["nps"] is not None and not c.get("comparable", True)]
+    hist = a.get("primary_metric") == "histogram"
+    hl = lambda c: c.get("headline") or {"nps": c["nps"], "nps_exact": c["nps_exact"], "volume": c["n"], "comparable": c["nps"] is not None and c.get("comparable", True)}
+    scored = [c for c in a["competitors"] if hl(c)["comparable"]]
+    excl = [c for c in a["competitors"] if c["nps"] is not None and not hl(c)["comparable"]]
     w = a["wedge"]
-    if not scored:
+    if not any(c["nps"] is not None for c in a["competitors"]):
         return [("Status", "<p><b>No startup conclusion is drawn.</b> No genuine reviews could be collected in this build "
                  "(collection endpoint blocked by network policy; see collection log). Every hypothesis below is untested.</p>"),
                 ("Hypotheses to test once data exists (not findings)",
                  "<ul>" + "".join(f"<li>{escape(k)}: {escape(v)}</li>" for k, v in list(RESPONSES.items())[:5]) + "</ul>")]
     if not scored:
         return [("Status", "<p><b>No comparable competitor scores.</b> Every scored sample hit the retrieval cap in several star buckets.</p>")]
-    lo = min(scored, key=lambda c: c["nps_exact"])
-    lb = [c for c in scored if c.get("capped_stars")]
-    small = [c for c in scored if c["below_min_n"]]
-    ov = (f"<p>{len(scored)} of {len(a['competitors'])} competitors have comparable scores. Baseline NPS ranges from "
-          f"{sgn(lo['nps'])} ({escape(lo['competitor'])}) to {sgn(max(c['nps'] for c in scored))} "
-          f"({escape(max(scored, key=lambda c: c['nps_exact'])['competitor'])}).")
-    if small:
-        ov += " Below the " + str(a["min_n_target"]) + "-review target: " + "; ".join(f"{escape(c['competitor'])} (n={c['n']})" for c in small) + " (no comparable alternative ASIN found)."
-    if lb:
-        ov += " Lower bound only (5&#9733; bucket capped): " + "; ".join(f"{escape(c['competitor'])} ({sgn(c['nps'])})" for c in lb) + "."
+    lo = min(scored, key=lambda c: hl(c)["nps_exact"])
+    top_c = max(scored, key=lambda c: hl(c)["nps_exact"])
+    vol = (lambda c: f"{hl(c)['volume']:,} ratings") if hist else (lambda c: f"n={c['n']}")
+    ov = (f"<p>{len(scored)} of {len(a['competitors'])} competitors have comparable scores"
+          + (" from each listing's Amazon star histogram (hand-recorded; &plusmn;2 pts rounding)" if hist else "")
+          + f". Baseline NPS ranges from {sgn(hl(lo)['nps'])} ({escape(lo['competitor'])}, {vol(lo)}) to "
+          f"{sgn(hl(top_c)['nps'])} ({escape(top_c['competitor'])}, {vol(top_c)}).")
+    if not hist:
+        lb = [c for c in scored if c.get("capped_stars")]
+        small = [c for c in scored if c["below_min_n"]]
+        if small:
+            ov += " Below the " + str(a["min_n_target"]) + "-review target: " + "; ".join(f"{escape(c['competitor'])} (n={c['n']})" for c in small) + " (no comparable alternative ASIN found)."
+        if lb:
+            ov += " Lower bound only (5&#9733; bucket capped): " + "; ".join(f"{escape(c['competitor'])} ({sgn(c['nps'])})" for c in lb) + "."
+    else:
+        ov += (" Written-review samples (used below for themes and quotes) are capped at ~110&ndash;125 reviews per star, so their sample NPS is shown for reference only.")
     ov += "</p>"
     if excl:
         ov += ("<p><b>Not comparable:</b> " + "; ".join(
@@ -80,16 +88,20 @@ def startup_text(a, reviews_by_id):
                ". The endpoint returns at most ~110&ndash;125 distinct reviews per star bucket, so for these heavily reviewed products the retrieved star mix is set by the cap, "
                "not by customers. Their sample scores are an artifact of retrieval and say nothing about loyalty; they are excluded from ranks and from the wedge test.</p>")
     blocks = [("1. Competitive overview", ov)]
+    vname = "total Amazon ratings" if hist else "retrieved volume"
     if w["status"] == "evaluated":
         cands = [c for c in scored if c["competitor"] in w["candidates"]]
-        txt = "; ".join(f"{escape(c['competitor'])} (n={c['n']}, NPS {sgn(c['nps'])}, 95% CI {c['ci95_low']:+.0f} to {c['ci95_high']:+.0f})" for c in cands)
+        txt = "; ".join(f"{escape(c['competitor'])} ({vol(c)}, NPS {sgn(hl(c)['nps'])}" +
+                        ("" if hist else f", 95% CI {c['ci95_low']:+.0f} to {c['ci95_high']:+.0f}") + ")" for c in cands)
         blocks.append(("2. Entry wedge (measured)",
-                       f"<p>Rule: retrieved volume &ge; median ({w['median_volume']:.0f}) and baseline NPS below median ({w['median_nps']:+.1f}). "
-                       f"Qualifying: {txt}. Retrieved volume is a capped proxy for market activity, so this is a candidate wedge, not a proven one.</p>"))
+                       f"<p>Rule: {vname} &ge; median ({w['median_volume']:,.0f}) and baseline NPS below median ({w['median_nps']:+.1f}). "
+                       f"Qualifying: {txt}. " + ("Ratings count is a proxy for sales, not a measure of it, so this is a candidate wedge, not a proven one.</p>" if hist else
+                       "Retrieved volume is a capped proxy for market activity, so this is a candidate wedge, not a proven one.</p>")))
     else:
+        untested = w.get("excluded_not_comparable", [])
         blocks.append(("2. Entry wedge",
-                       "<p><b>No high-volume / low-loyalty wedge can be shown from this data.</b> Among the comparable products, none with at-or-above-median retrieved volume "
-                       f"has below-median NPS. {escape(', '.join(w.get('excluded_not_comparable', [])) or 'No product')} could not be tested because of capped samples. "
+                       f"<p><b>No high-volume / low-loyalty wedge can be shown from this data.</b> Among the comparable products, none with at-or-above-median {vname} "
+                       "has below-median NPS. " + (f"{escape(', '.join(untested))} could not be tested because of capped samples. " if untested else "") +
                        "The entry case therefore rests on the dissatisfaction themes below, not on a measured weak incumbent.</p>"
                        if w["status"] == "no_classic_wedge" else
                        "<p><b>Wedge not evaluated:</b> fewer than three competitors have comparable scores.</p>"))
@@ -100,7 +112,7 @@ def startup_text(a, reviews_by_id):
         f"<td>{escape(RESPONSES[t['theme']])}</td></tr>" for t in top)
     blocks.append(("3. Customer dissatisfaction evidence &rarr; Silk Road response (hypothesis)",
                    f"<p>Keyword-rule coding of {a['detractor_total']} retrieved detractor (1&ndash;3&#9733;) reviews. A review can match several themes; "
-                   "capped retrieval over-samples detractors of the not-comparable products, so counts show what complaints say, not how common they are among buyers; "
+                   "capped retrieval over-samples detractors of the most-reviewed products, so counts show what complaints say, not how common they are among buyers; "
                    "rules are in pipeline/analyze.py and every match stores its review ID.</p>"
                    "<table><tr><th>Theme</th><th>Detractor reviews</th><th>% of detractors</th><th>Competitors</th><th>Proposed response (untested)</th></tr>"
                    f"{rows or '<tr><td colspan=5>No theme matched any detractor review.</td></tr>'}</table>"))
@@ -130,15 +142,36 @@ def trim(s, n=260):
 
 def build_html(a, reviews):
     by_id = {r["review_id"]: r for r in reviews}
-    rows = "".join(
-        f"<tr><td>{c['rank'] or '–'}</td><td>{escape(c['competitor'])}</td><td>{escape(c['product_name'])}<br><span class=muted>ASIN "
-        f"<a href='{c['listing_url']}'>{c['asin']}</a></span>{cap_note(c)}</td><td class=n>{c['n']}</td><td class=n>{pct(c['promoter_pct'])}</td>"
+    hist = a.get("primary_metric") == "histogram"
+    ci = lambda c: "N/A" if c["ci95_low"] is None else f"{c['ci95_low']:+.0f} to {c['ci95_high']:+.0f}"
+    prod = lambda c: (f"{escape(c['product_name'])}<br><span class=muted>ASIN <a href='{c['listing_url']}'>{c['asin']}</a></span>")
+    sample_rows = "".join(
+        ("" if hist else f"<tr><td>{c['rank'] or '–'}</td>") + (f"<tr>" if hist else "") +
+        f"<td>{escape(c['competitor'])}</td>" + ("" if hist else f"<td>{prod(c)}{cap_note(c)}</td>") + f"<td class=n>{c['n']}</td><td class=n>{pct(c['promoter_pct'])}</td>"
         f"<td class=n>{pct(c['passive_pct'])}</td><td class=n>{pct(c['detractor_pct'])}</td><td class=n data-nps='{escape(c['competitor'])}'><b>{sgn(c['nps'])}</b></td>"
-        f"<td class=n>{'N/A' if c['ci95_low'] is None else f'{c[chr(99)+'i95_low']:+.0f} to {c['ci95_high']:+.0f}'}</td></tr>"
+        f"<td class=n>{ci(c)}</td></tr>"
         for c in a["competitors"])
+    sample_table = ("<table><tr>" + ("" if hist else "<th>Rank</th>") + "<th>Competitor</th>" + ("" if hist else "<th>Product (Amazon US)</th>") + "<th>n</th><th>Promoter</th><th>Passive</th>"
+                    f"<th>Detractor</th><th>{'Sample NPS' if hist else 'NPS'}</th><th>95% CI</th></tr>{sample_rows}</table>")
+    if hist:
+        hrows = "".join(
+            f"<tr><td>{c['rank'] or '–'}</td><td>{escape(c['competitor'])}</td><td>{prod(c)}</td><td class=n>{c['histogram']['total_ratings']:,}</td>"
+            f"<td class=n>{pct(c['histogram']['promoter_pct'])}</td><td class=n>{pct(c['histogram']['passive_pct'])}</td><td class=n>{pct(c['histogram']['detractor_pct'])}</td>"
+            f"<td class=n><b>{sgn(c['histogram']['nps'])}</b></td><td class=n>{c['histogram']['recorded_on']}</td></tr>" for c in a["competitors"])
+        main_table = ("<table><tr><th>Rank</th><th>Competitor</th><th>Product (Amazon US)</th><th>Amazon ratings</th><th>5&#9733;</th><th>4&#9733;</th>"
+                      f"<th>1&ndash;3&#9733;</th><th>NPS</th><th>Recorded</th></tr>{hrows}</table>"
+                      "<p class=muted>Star shares from each listing's rating histogram, hand-recorded (data/raw/histograms/star_histograms.csv), normalized to their sum. "
+                      "Amazon rounds each share to a whole percent, so each NPS carries up to &plusmn;2 points of rounding error. "
+                      "Histograms include star-only ratings and are labeled 'global ratings' by Amazon.</p>")
+        sample_section = ("<h3>Written-review sample (reference only; used for themes and quotes)</h3>" + sample_table +
+                          "<p class=muted>Retrieval capped each star bucket at ~110&ndash;125 reviews, so sample shares reflect the cap for heavily reviewed products.</p>")
+    else:
+        main_table, sample_section = sample_table, ""
+    hrow = (lambda c: (c["headline"]["nps"], c["headline"]["alt_nps"], c["headline"]["alt_nps_exact"] - c["headline"]["nps_exact"],
+                       c["histogram"]["passive_pct"])) if hist else (lambda c: (c["nps"], c["alt_nps"], c["delta_exact"], c["four_star_pct"]))
     sens = "".join(
-        f"<tr><td>{escape(c['competitor'])}</td><td class=n>{sgn(c['nps'])}</td><td class=n>{sgn(c['alt_nps'])}</td>"
-        f"<td class=n>{'N/A' if c['delta_exact'] is None else f'+{c[chr(100)+'elta_exact']:.1f}'}</td><td class=n>{pct(c['four_star_pct'])}</td>"
+        f"<tr><td>{escape(c['competitor'])}</td><td class=n>{sgn(hrow(c)[0])}</td><td class=n>{sgn(hrow(c)[1])}</td>"
+        f"<td class=n>{'N/A' if hrow(c)[2] is None else f'+{hrow(c)[2]:.1f}'}</td><td class=n>{pct(hrow(c)[3])}</td>"
         f"<td class=n>{c['rank'] or '–'} &rarr; {c['alt_rank'] or '–'}</td></tr>" for c in a["competitors"])
     ex_html = ""
     for label, key in (("5&#9733; Promoter", "promoter_5"), ("4&#9733; Passive", "passive_4"), ("1&ndash;3&#9733; Detractor", "detractor_1_3")):
@@ -162,24 +195,25 @@ body {{ font: 10pt/1.42 Helvetica, Arial, sans-serif; color:#1f2a44; background:
 h1 {{ font-size:17pt; margin:0 0 2pt }} h2 {{ font-size:13pt; color:#b0703c; border-bottom:1px solid #e4ddd0; padding-bottom:3pt; margin:12pt 0 6pt }}
 h3 {{ font-size:10.5pt; margin:9pt 0 3pt }} p {{ margin:3pt 0 }} .muted {{ color:#6b6f76; font-size:8.5pt }}
 table {{ border-collapse:collapse; width:100%; font-size:9pt; margin:5pt 0 }} th,td {{ border-bottom:1px solid #e4ddd0; padding:3pt 4pt; text-align:left; vertical-align:top }}
-th {{ background:#f6f1e7 }} td.n {{ text-align:right; white-space:nowrap }} a {{ color:#1f2a44 }}
-.page {{ break-after:page }} .page:last-child {{ break-after:auto }} svg {{ max-width:100%; height:auto }} .sm svg {{ width:64%; }} .sc svg {{ width:70%; }}
+th {{ background:#f6f1e7 }} tr {{ break-inside:avoid }} td.n {{ text-align:right; white-space:nowrap }} a {{ color:#1f2a44 }}
+.page {{ break-after:page }} .page:last-child {{ break-after:auto }} .flow + section h2 {{ margin-top:16pt }} svg {{ max-width:100%; height:auto }} .sm svg {{ width:64%; }} .sc svg {{ width:70%; }}
 .quote {{ border-left:3px solid #b0703c; padding:3pt 8pt; margin:5pt 0; font-size:9pt; break-inside:avoid }}
 .alert {{ background:#fbeee9; border:1px solid #a4483e; padding:6pt 8pt; margin:6pt 0; font-size:9.5pt }}
 </style></head><body>
 <section class=page><h1>Silk Road Salts | Loyalty Intelligence</h1>
-<p class=muted>Review-Derived NPS for five specialty-salt competitors &middot; Amazon US written reviews &middot; analysis generated {a['generated_at'][:10]}</p>
+<p class=muted>Review-Derived NPS for five specialty-salt competitors &middot; {"Amazon US star histograms + written reviews" if hist else "Amazon US written reviews"} &middot; analysis generated {a['generated_at'][:10]}</p>
 {no_data}
 <h2>1. Competitive Loyalty Analysis</h2>
-<table><tr><th>Rank</th><th>Competitor</th><th>Product (Amazon US)</th><th>n</th><th>Promoter</th><th>Passive</th><th>Detractor</th><th>NPS</th><th>95% CI</th></tr>{rows}</table>
-<p class=muted>{escape(a['comparability_note'])} Total analyzed reviews: {a['total_reviews']}. Source: Amazon US written reviews retrieved through Woot's public review endpoint (woot.com/review/Reviews/&lt;ASIN&gt;), using the open-source mrlong0129/amazon-review-scraper. Records are "source-retrieved", not independently matched to amazon.com permalinks.</p>
+{main_table}
+<p class=muted>{escape(a['comparability_note'])} Total analyzed written reviews: {a['total_reviews']}. Source: Amazon US written reviews retrieved through Woot's public review endpoint (woot.com/review/Reviews/&lt;ASIN&gt;), using the open-source mrlong0129/amazon-review-scraper. Records are "source-retrieved", not independently matched to amazon.com permalinks.</p>
 <h3>Bucket boundaries</h3><p><b>Promoter = 5&#9733;; Passive = 4&#9733;; Detractor = 1&ndash;3&#9733;.</b> NPS = %Promoters &minus; %Detractors, computed at full precision and rounded to a whole number. Five stars is the clearest written expression of enthusiasm; four-star reviews frequently carry reservations, mirroring the survey's 7&ndash;8 "passive" band; 1&ndash;3 stars signal dissatisfaction or materially qualified experience. These thresholds are judgment calls, so a sensitivity test follows. This is a <b>Review-Derived NPS</b>, not an official survey NPS.</p>
 <div class=sm>{charts.bar(a)}</div>
 </section>
-<section class=page><h2>2. Methodology, Sensitivity &amp; Evidence</h2>
+<section class={"flow" if hist else "page"}><h2>2. Methodology, Sensitivity &amp; Evidence</h2>
 <h3>Alternative specification: 4&ndash;5&#9733; = Promoter, 1&ndash;3&#9733; = Detractor, no Passives</h3>
 <table><tr><th>Competitor</th><th>Baseline NPS</th><th>Alternative NPS</th><th>Change (pts, exact)</th><th>4&#9733; share</th><th>Rank: base &rarr; alt</th></tr>{sens}</table>
-<p class=muted>Ranks are given only for comparable samples ("&ndash;" = not ranked, see section 1). The exact change always equals the 4&#9733; share; displayed rounded values can differ by &plusmn;1 point due to rounding.</p>
+<p class=muted>{"Computed on the Amazon star histograms (headline basis)." if hist else 'Ranks are given only for comparable samples ("&ndash;" = not ranked, see section 1).'} The exact change always equals the 4&#9733; share; displayed rounded values can differ by &plusmn;1 point due to rounding.</p>
+{sample_section}
 <h3>Three classified excerpts (verbatim, from stored records)</h3>{ex_html}
 <h3>Selection bias</h3><p><b>{BIAS}</b></p><ul>{lim}</ul></section>
 <section class=page><h2>3. Where Should Silk Road Salts Compete?</h2>

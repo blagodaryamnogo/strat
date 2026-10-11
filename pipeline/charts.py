@@ -1,4 +1,5 @@
 """SVG charts generated from analysis.json. The same SVG files are used by the web app and the PDF."""
+import math
 from html import escape
 
 INK, MUTED, COPPER, GREEN, RED, GRID = "#1f2a44", "#6b6f76", "#b0703c", "#3f7d58", "#a4483e", "#e4ddd0"
@@ -10,12 +11,18 @@ def _empty(w, h, msg):
             f'<text x="{w/2}" y="{h/2}" text-anchor="middle" fill="{MUTED}" font-size="13">{escape(msg)}</text></svg>')
 
 
+def _hl(c):
+    """Headline score block (histogram or written-review sample); older analysis files lack it."""
+    return c.get("headline") or {"nps": c["nps"], "alt_nps": c["alt_nps"], "volume": c["n"],
+                                 "comparable": c["nps"] is not None and c.get("comparable", True)}
+
+
 def _excluded(analysis):
-    return [c["competitor"] for c in analysis["competitors"] if c["nps"] is not None and not c.get("comparable", True)]
+    return [c["competitor"] for c in analysis["competitors"] if c["nps"] is not None and not _hl(c)["comparable"]]
 
 
 def bar(analysis, key="nps", title="Review-Derived NPS (baseline)"):
-    rows = [c for c in analysis["competitors"] if c[key] is not None and c.get("comparable", True)]
+    rows = [{"competitor": c["competitor"], key: _hl(c)[key]} for c in analysis["competitors"] if _hl(c)["comparable"] and _hl(c)[key] is not None]
     excl = _excluded(analysis)
     w, row_h, left, top = 640, 34, 170, 36
     h = top + row_h * max(len(rows), 1) + 34 + (18 if excl else 0)
@@ -43,13 +50,20 @@ def bar(analysis, key="nps", title="Review-Derived NPS (baseline)"):
 
 
 def scatter(analysis):
-    rows = [c for c in analysis["competitors"] if c["nps"] is not None and c.get("comparable", True)]
+    rows = [{"competitor": c["competitor"], "nps": _hl(c)["nps"], "n": _hl(c)["volume"]} for c in analysis["competitors"] if _hl(c)["comparable"]]
     excl = _excluded(analysis)
+    hist = analysis.get("primary_metric") == "histogram"
     w, h, l, r, t, b = 640, 360 + (16 if excl else 0), 60, 20, 30, 50 + (16 if excl else 0)
     if not rows:
         return _empty(w, 200, "Loyalty vs. volume chart requires scored reviews")
-    xmax = max(c["n"] for c in rows) * 1.15
-    sx = lambda v: l + v / xmax * (w - l - r)
+    lo, hi = min(c["n"] for c in rows), max(c["n"] for c in rows)
+    use_log = lo > 0 and hi / lo > 30  # rating totals span orders of magnitude
+    if use_log:
+        a0, a1 = math.log10(lo) - 0.15, math.log10(hi) + 0.15
+        sx = lambda v: l + (math.log10(v) - a0) / (a1 - a0) * (w - l - r)
+    else:
+        xmax = hi * 1.15
+        sx = lambda v: l + v / xmax * (w - l - r)
     sy = lambda v: t + (100 - v) / 200 * (h - t - b)
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}" font-family="Helvetica, Arial, sans-serif">',
            f'<text x="0" y="16" font-size="13" font-weight="600" fill="{INK}">Loyalty vs. review volume</text>']
@@ -63,9 +77,10 @@ def scatter(analysis):
     for c in rows:
         x, y = sx(c["n"]), sy(c["nps"])
         right = x > w * 0.6
-        out.append(f'<circle cx="{x}" cy="{y}" r="6" fill="{INK}"/><text x="{x-9 if right else x+9}" y="{y-8}" font-size="11" text-anchor="{"end" if right else "start"}" fill="{INK}">{escape(c["competitor"])} ({c["nps"]:+d}, n={c["n"]})</text>')
+        out.append(f'<circle cx="{x}" cy="{y}" r="6" fill="{INK}"/><text x="{x-9 if right else x+9}" y="{y-8}" font-size="11" text-anchor="{"end" if right else "start"}" fill="{INK}">{escape(c["competitor"])} ({c["nps"]:+d}, {"ratings" if hist else "n"}={c["n"]:,})</text>')
     if excl:
         out.append(f'<text x="0" y="{h-4}" font-size="10" fill="{MUTED}">Not plotted (capped samples, NPS not comparable): {escape(", ".join(excl))}</text>')
-    out.append(f'<text x="{(l+w-r)/2}" y="{h-12-(16 if excl else 0)}" font-size="11" text-anchor="middle" fill="{MUTED}">Written reviews retrieved &amp; scored (not total Amazon ratings)</text>'
-               f'<text x="14" y="{(t+h-b)/2}" font-size="11" text-anchor="middle" fill="{MUTED}" transform="rotate(-90 14 {(t+h-b)/2})">Baseline review-derived NPS</text></svg>')
+    out.append(f'<text x="{(l+w-r)/2}" y="{h-12-(16 if excl else 0)}" font-size="11" text-anchor="middle" fill="{MUTED}">'
+               f'{"Total Amazon ratings (log scale)" if hist and use_log else "Total Amazon ratings" if hist else "Written reviews retrieved &amp; scored (not total Amazon ratings)"}</text>'
+               f'<text x="14" y="{(t+h-b)/2}" font-size="11" text-anchor="middle" fill="{MUTED}" transform="rotate(-90 14 {(t+h-b)/2})">{"Baseline NPS (Amazon star histogram)" if hist else "Baseline review-derived NPS"}</text></svg>')
     return "".join(out)

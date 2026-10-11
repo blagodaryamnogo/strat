@@ -178,3 +178,34 @@ def test_cap_validity_excludes_capped_samples_from_ranks(tmp_path):
     by = {c["competitor"]: c for c in a["competitors"]}
     assert by[PRODUCTS[0]["competitor"]]["rank"] is None and by[PRODUCTS[0]["competitor"]]["nps"] == 25
     assert by[PRODUCTS[1]["competitor"]]["rank"] == 1 and PRODUCTS[0]["competitor"] in a["wedge"]["excluded_not_comparable"]
+
+
+def test_histogram_input_validation(tmp_path):
+    from pipeline import histograms
+    f = tmp_path / "h.csv"
+    hdr = "competitor,asin,listing_url,pct_5,pct_4,pct_3,pct_2,pct_1,total_ratings,average_rating,recorded_on,recorded_by,notes\n"
+    a0, a1, a2, a3 = (p["asin"] for p in PRODUCTS[:4])
+    f.write_text(hdr +
+                 f"x,{a0},u,81,9,4,2,4,\"12,345\",4.7,2026-10-11,WK,\n"   # valid (sum 100)
+                 f"x,{a1},u,,,,,,,,,,\n"                                  # not entered: ignored, no error
+                 f"x,{a2},u,70,10,5,5,,500,,2026-10-11,WK,\n"             # missing pct_1
+                 f"x,{a3},u,70,10,5,5,5,500,,2026-10-11,WK,\n")           # sums to 95
+    h, errs = histograms.load(f)
+    assert list(h) == [a0] and h[a0]["total_ratings"] == 12345 and h[a0]["raw_ref"].endswith("h.csv:2")
+    assert len(errs) == 2 and "pct_1" in errs[0] and "sum to 95" in errs[1]
+    sc = histograms.score(h[a0])
+    assert round(sc["nps_exact"], 6) == 81 - 10 and round(sc["alt_nps_exact"], 6) == 90 - 10
+
+
+def test_histogram_headline_only_when_all_entered():
+    from pipeline import histograms
+    recs = [{"competitor": p["competitor"], "rating": r, "review_id": f"{p['asin']}{i}", "title": "", "review_text": "x",
+             "verified_purchase": True, "review_date": "2025-01-01", "collection_source": "s", "verification_status": "source_retrieved"}
+            for p in PRODUCTS for i, r in enumerate([5, 4, 1])]
+    h = {"pct": {5: 60, 4: 20, 3: 10, 2: 5, 1: 5}, "pct_sum": 100, "total_ratings": 10, "average_rating": None,
+         "recorded_on": "2026-10-11", "recorded_by": "t", "notes": "", "raw_ref": "r"}
+    part = analyze.build(recs, hists={PRODUCTS[0]["asin"]: h})
+    assert part["primary_metric"] == "review_sample" and part["histogram_status"] == "partial"
+    full = analyze.build(recs, hists={p["asin"]: h for p in PRODUCTS})
+    assert full["primary_metric"] == "histogram"
+    assert all(c["headline"]["nps"] == 40 and c["rank"] == 1 for c in full["competitors"])

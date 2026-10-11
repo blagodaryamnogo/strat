@@ -27,6 +27,22 @@ make collect   # live retrieval (needs network access to www.woot.com)
 make all       # normalize -> analyze -> charts/PDF -> tests
 ```
 
+### Fixing the capped scores: Amazon star histograms (hand-recorded)
+
+Amazon's bot check blocks automated listing fetches, so each listing's star histogram is typed in by hand into
+`data/raw/histograms/star_histograms.csv` (one pre-filled row per ASIN):
+
+1. Open the row's `listing_url` in a browser, scroll to **Customer reviews**.
+2. Enter the five bar percentages as whole numbers in `pct_5` … `pct_1` (type what Amazon shows; do not adjust them to sum to 100),
+   the ratings count (e.g. `12,345 global ratings` → `12345`) in `total_ratings`, the average (e.g. `4.7`) in `average_rating`,
+   today's date (`YYYY-MM-DD`) in `recorded_on`, and your name/initials in `recorded_by`. Optional: `notes` (e.g. which size/variant was selected).
+3. `make all`.
+
+Rows left blank are ignored; a partly filled row, a non-number, or percentages not summing to 97–103 are reported and not used.
+**Only when all five rows are valid** does the headline switch to histogram NPS for every product (one basis for all;
+ranks, charts, wedge and PDF follow, with total ratings as the volume axis). Until then everything stays on the written-review
+sample. Histogram NPS carries up to ±2 points of rounding error and covers all ratings (including star-only), which the report states.
+
 Alternative: put manually transcribed public reviews in `data/raw/manual/*.csv`
 (columns in `data/raw/manual/TEMPLATE.csv.example`; records are labeled `manually_recorded`), then `make all`.
 

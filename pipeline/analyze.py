@@ -12,7 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from pipeline.nps import classify, rank, score  # noqa: E402
+from pipeline import histograms  # noqa: E402
+from pipeline.nps import classify, rank, round_half_away, score  # noqa: E402
 from pipeline.products import COMPARABILITY_NOTE, PRODUCTS  # noqa: E402
 
 LIMITATIONS = [
@@ -29,6 +30,17 @@ LIMITATIONS = [
 ]
 
 CAP = 100  # upstream per (star filter x sort) limit; see pipeline/collect.py
+
+HIST_LIMITATIONS = [
+    "Headline scores use each listing's Amazon star histogram, hand-recorded from the live page (date and recorder stored). "
+    "Histograms cover all ratings, including star-only ratings, and Amazon labels them 'global ratings', which may include other Amazon stores.",
+    "Amazon shows whole-number percentages, so each histogram NPS carries up to about +/-2 points of rounding error; "
+    "differences of a few points are not meaningful.",
+    "Written-review samples (capped at ~110-125 per star by the Woot endpoint) are used only for themes and excerpts; their sample NPS is shown for reference.",
+]
+
+# Sample-scoring caveats that the histogram headline (and HIST_LIMITATIONS) supersede.
+SAMPLE_ONLY = ("The Woot endpoint returns", "Written reviews only", "Small differences in NPS (within the 95%")
 
 MIN_N = 50  # assignment target; smaller samples are reported, and flagged
 
@@ -112,39 +124,55 @@ def pick_excerpt(reviews, pred):
     return pool[0]["review_id"] if pool else None
 
 
-def build(reviews, products=PRODUCTS, caps=None):
-    caps = caps or {}
+def hist_block(h):
+    if not h:
+        return None
+    sc = histograms.score(h)
+    return {**h, **sc, "nps": round_half_away(sc["nps_exact"]), "alt_nps": round_half_away(sc["alt_nps_exact"])}
+
+
+def build(reviews, products=PRODUCTS, caps=None, hists=None, hist_errors=()):
+    caps, hists = caps or {}, hists or {}
     comps = []
-    scores = {}
     for p in products:
         mine = [r for r in reviews if r["competitor"] == p["competitor"]]
         s = score([r["rating"] for r in mine])
         cap = caps.get(p["asin"], {"capped_stars": [], "uneven_stars": []})
         validity = sample_validity(cap["capped_stars"])
-        if validity != "capped_mixed":
-            scores[p["competitor"]] = s
         dates = sorted(r["review_date"] for r in mine if r["review_date"])
         comps.append({**{k: p[k] for k in ("competitor", "asin", "product_name", "package_size", "product_type", "listing_url")},
                       **s, "below_min_n": s["n"] < MIN_N,
                       "capped_stars": cap["capped_stars"], "uneven_stars": cap["uneven_stars"],
                       "sample_validity": validity, "comparable": validity != "capped_mixed",
+                      "histogram": hist_block(hists.get(p["asin"])),
                       "date_range": [dates[0], dates[-1]] if dates else None,
                       "collection_sources": sorted({r["collection_source"] for r in mine}),
                       "verification_counts": {v: sum(1 for r in mine if r["verification_status"] == v) for v in sorted({r["verification_status"] for r in mine})}})
-    r_base, r_alt = rank(scores, "nps"), rank(scores, "alt_nps")
+    # Headline score: Amazon's full star histogram once every product has one (same basis for all),
+    # otherwise the written-review sample (capped samples excluded from ranks).
+    primary = "histogram" if comps and all(c["histogram"] for c in comps) else "review_sample"
+    for c in comps:
+        h = c["histogram"]
+        c["headline"] = ({"source": "histogram", "nps": h["nps"], "nps_exact": h["nps_exact"], "alt_nps": h["alt_nps"],
+                          "alt_nps_exact": h["alt_nps_exact"], "volume": h["total_ratings"], "comparable": True}
+                         if primary == "histogram" else
+                         {"source": "review_sample", "nps": c["nps"], "nps_exact": c["nps_exact"], "alt_nps": c["alt_nps"],
+                          "alt_nps_exact": c["alt_nps_exact"], "volume": c["n"], "comparable": c["comparable"] and c["nps"] is not None})
+    ranked = {c["competitor"]: c["headline"] for c in comps if c["headline"]["comparable"]}
+    r_base, r_alt = rank(ranked, "nps"), rank(ranked, "alt_nps")
     for c in comps:
         c["rank"], c["alt_rank"] = r_base.get(c["competitor"]), r_alt.get(c["competitor"])
         c["rank_change"] = (c["rank"] - c["alt_rank"]) if c["rank"] and c["alt_rank"] else None  # + = moved up
-    scored = [c for c in comps if c["nps"] is not None and c["comparable"]]
+    scored = [c for c in comps if c["headline"]["comparable"]]
 
-    # Loyalty vs volume. Marketplace totals were not obtainable, so x = written reviews retrieved & scored.
-    wedge = {"status": "insufficient_data", "rule": "volume >= median retrieved count AND baseline NPS < median NPS (comparable samples only)",
-             "candidates": [], "excluded_not_comparable": [c["competitor"] for c in comps if c["nps"] is not None and not c["comparable"]]}
+    # Loyalty vs volume. Volume = total Amazon ratings (histogram) or written reviews retrieved (sample).
+    wedge = {"status": "insufficient_data", "rule": "volume >= median AND headline NPS < median NPS (comparable scores only)",
+             "candidates": [], "excluded_not_comparable": [c["competitor"] for c in comps if c["nps"] is not None and not c["headline"]["comparable"]]}
     if len(scored) >= 3:
-        mv = statistics.median(c["n"] for c in scored)
-        mn = statistics.median(c["nps_exact"] for c in scored)
+        mv = statistics.median(c["headline"]["volume"] for c in scored)
+        mn = statistics.median(c["headline"]["nps_exact"] for c in scored)
         wedge.update(median_volume=mv, median_nps=mn, status="evaluated",
-                     candidates=[c["competitor"] for c in scored if c["n"] >= mv and c["nps_exact"] < mn])
+                     candidates=[c["competitor"] for c in scored if c["headline"]["volume"] >= mv and c["headline"]["nps_exact"] < mn])
         if not wedge["candidates"]:
             wedge["status"] = "no_classic_wedge"
     th, n_det = themes(reviews) if reviews else ([], 0)
@@ -160,25 +188,32 @@ def build(reviews, products=PRODUCTS, caps=None):
         "total_reviews": total,
         "min_n_target": MIN_N,
         "competitors": sorted(comps, key=lambda c: (c["rank"] is None, c["rank"] or 0, c["competitor"])),
-        "volume_metric": "Distinct written reviews retrieved and scored (NOT total Amazon ratings; marketplace totals could not be retrieved)",
+        "primary_metric": primary,
+        "histogram_status": ("complete" if primary == "histogram" else "partial" if any(c["histogram"] for c in comps) else "not_entered"),
+        "histogram_errors": list(hist_errors),
+        "volume_metric": ("Total Amazon ratings shown on each listing (hand-recorded; includes star-only ratings)" if primary == "histogram" else
+                          "Distinct written reviews retrieved and scored (NOT total Amazon ratings; marketplace totals could not be retrieved)"),
         "wedge": wedge,
         "themes": th, "detractor_total": n_det,
         "excerpts": excerpts,
         "comparability_note": COMPARABILITY_NOTE,
-        "limitations": LIMITATIONS + [
+        "limitations": (HIST_LIMITATIONS + [x for x in LIMITATIONS if not x.startswith(SAMPLE_ONLY)] if primary == "histogram" else LIMITATIONS) + [
             f"{c['competitor']}: {'/'.join(str(x) for x in c['capped_stars'])}-star bucket(s) hit the retrieval cap, so "
             + ("its NPS is not comparable and is not ranked." if not c["comparable"] else "its NPS is a lower bound.")
-            for c in comps if c["capped_stars"]],
+            for c in comps if c["capped_stars"] and primary != "histogram"],
     }
 
 
 def main():
     reviews = json.loads((ROOT / "data/processed/reviews.json").read_text())
-    a = build(reviews, caps=load_caps())
+    hists, errs = histograms.load()
+    for e in errs:
+        print("histogram input error:", e, file=sys.stderr)
+    a = build(reviews, caps=load_caps(), hists=hists, hist_errors=errs)
     (ROOT / "data/processed/analysis.json").write_text(json.dumps(a, ensure_ascii=False, indent=1))
     for c in a["competitors"]:
-        print(f"{c['competitor']:20} n={c['n']:4} NPS={c['nps']} alt={c['alt_nps']} rank={c['rank']} alt_rank={c['alt_rank']} {c['sample_validity']} capped={c['capped_stars']}")
-    print("status:", a["status"])
+        print(f"{c['competitor']:20} n={c['n']:4} NPS={c['nps']} alt={c['alt_nps']} rank={c['rank']} alt_rank={c['alt_rank']} {c['sample_validity']} capped={c['capped_stars']} headline={c['headline']['source']}:{c['headline']['nps']}")
+    print("status:", a["status"], "| headline:", a["primary_metric"], "| histograms:", a["histogram_status"])
 
 
 if __name__ == "__main__":

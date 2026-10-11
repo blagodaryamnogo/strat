@@ -30,7 +30,9 @@ make all       # normalize -> analyze -> charts/PDF -> tests
 ### Fixing the capped scores: Amazon star histograms (hand-recorded)
 
 Amazon's bot check blocks automated listing fetches, so each listing's star histogram is typed in by hand into
-`data/raw/histograms/star_histograms.csv` (one pre-filled row per ASIN):
+`data/raw/histograms/star_histograms.csv` (one pre-filled row per ASIN). Easiest: the web app's **Star Histograms** section
+(`site/histogram-entry.js`) checks each row with the pipeline's rules as you type, shows a labelled preview NPS, and downloads
+or copies the finished CSV (on the claude.ai preview it can also save the rows for Claude to apply). By hand:
 
 1. Open the row's `listing_url` in a browser, scroll to **Customer reviews**.
 2. Enter the five bar percentages as whole numbers in `pct_5` … `pct_1` (type what Amazon shows; do not adjust them to sum to 100),

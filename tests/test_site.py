@@ -52,7 +52,7 @@ def build_synthetic(tmp, hists=None):
     (proc / "analysis.json").write_text(json.dumps(a)); (proc / "reviews.json").write_text(json.dumps(acc))
     (tmp / "r.csv").write_text("x\n")
     site = tmp / "site"; site.mkdir()
-    for f in ("index.html", "app.js", "style.css"):
+    for f in ("index.html", "app.js", "histogram-entry.js", "style.css"):
         shutil.copy(ROOT / "site" / f, site / f)
     report.main(proc, tmp / "r.csv", site)
     return site, a
@@ -176,13 +176,47 @@ def test_synthetic_histogram_headline(browser, synthetic_hist_site):
     srv.shutdown()
 
 
+def test_histogram_entry_matches_pipeline(browser, synthetic_site, tmp_path):
+    from pipeline import histograms
+    from pipeline.nps import round_half_away
+    site, a = synthetic_site
+    page, errors, srv = open_page(browser, site)
+    page.wait_for_selector("#hist-table tbody tr")
+    page.evaluate("localStorage.clear()")
+    asin = PRODUCTS[0]["asin"]
+    row = page.locator(f"#hist-table tbody tr[data-asin='{asin}']")
+    vals = {"pct_5": "81", "pct_4": "10", "pct_3": "4", "pct_2": "2", "pct_1": "4", "total_ratings": "12,345",
+            "average_rating": "4.7", "recorded_by": "TEST, \"fixture\""}
+    for k, v in vals.items():
+        row.locator(f"input[data-k='{k}']").fill(v)
+    assert row.locator("input[data-k='recorded_on']").input_value()  # auto-filled with today
+    # CSV produced by the page parses with the pipeline loader to the same values and score
+    f = tmp_path / "star_histograms.csv"
+    f.write_text(page.input_value("#hist-csv"))
+    h, errs = histograms.load(f)
+    assert not errs and list(h) == [asin]
+    assert h[asin]["pct"] == {5: 81, 4: 10, 3: 4, 2: 2, 1: 4} and h[asin]["total_ratings"] == 12345 and h[asin]["recorded_by"] == 'TEST, "fixture"'
+    expect = round_half_away(histograms.score(h[asin])["nps_exact"])
+    assert row.locator("b[data-preview]").inner_text() == f"{expect:+d}"
+    assert page.inner_text("#hist-summary").startswith("1 of 5")
+    # invalid row: percentages that do not sum to ~100 are rejected with the pipeline's rule
+    row2 = page.locator(f"#hist-table tbody tr[data-asin='{PRODUCTS[1]['asin']}']")
+    for k, v in {"pct_5": "50", "pct_4": "10", "pct_3": "5", "pct_2": "5", "pct_1": "5", "total_ratings": "100", "recorded_by": "x"}.items():
+        row2.locator(f"input[data-k='{k}']").fill(v)
+    assert "sum to 75" in row2.locator(".hist-status").inner_text()
+    assert page.is_hidden("#hist-save")  # db-backed save exists only on the claude.ai preview
+    page.evaluate("localStorage.clear()")
+    assert not errors, errors
+    srv.shutdown()
+
+
 def test_real_site(browser):
     site = ROOT / "site"
     a = json.loads((site / "analysis.json").read_text())
     assert a == json.loads((ROOT / "data/processed/analysis.json").read_text())
     page, errors, srv = open_page(browser, site)
     check_consistency(page, site, a)
-    for sec in ("overview", "competitors", "method", "explorer", "opportunity", "export"):
+    for sec in ("overview", "competitors", "method", "explorer", "opportunity", "histograms", "export"):
         assert page.locator(f"#{sec}").is_visible()
     assert page.locator("#chart-main").evaluate("i => i.complete && i.naturalWidth > 0")
     page.click("#m-alt"); page.click("#m-base")

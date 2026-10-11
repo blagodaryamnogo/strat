@@ -13,7 +13,7 @@
     <h1>Silk Road Salts <span>| Loyalty Intelligence</span></h1>
     <nav>
       <a href="#overview">Overview</a><a href="#competitors">Competitor Analysis</a><a href="#method">Methodology &amp; Sensitivity</a>
-      <a href="#explorer">Review Explorer</a><a href="#opportunity">Market Opportunity</a><a href="#export">Report &amp; Export</a>
+      <a href="#explorer">Review Explorer</a><a href="#opportunity">Market Opportunity</a><a href="#histograms">Star Histograms</a><a href="#export">Report &amp; Export</a>
     </nav>
   </div>
 </header>
@@ -74,6 +74,28 @@
     <div id="startup"></div>
   </section>
 
+  <section id="histograms">
+    <h2>Amazon Star Histograms</h2>
+    <p>The written-review samples for heavily reviewed products are capped by the review endpoint, so their star mix is not reliable.
+      Each Amazon listing shows the true star breakdown. Open each listing, scroll to <b>Customer reviews</b>, and type the five
+      percentages exactly as shown (don't adjust them to total 100), the ratings count (&ldquo;12,345 global ratings&rdquo; &rarr; 12345),
+      the average, the date you read it and your initials.</p>
+    <p class="muted" id="hist-applied"></p>
+    <div class="overflow"><table id="hist-table"><thead><tr><th>Product</th><th>5&#9733; %</th><th>4&#9733; %</th><th>3&#9733; %</th><th>2&#9733; %</th><th>1&#9733; %</th>
+      <th>Total ratings</th><th>Avg</th><th>Recorded on</th><th>By</th><th>Notes</th><th>Check</th></tr></thead><tbody></tbody></table></div>
+    <p id="hist-summary"></p>
+    <div class="hist-actions">
+      <button type="button" class="btn" id="hist-save" hidden>Save for Claude</button>
+      <button type="button" class="btn" id="hist-download">Download CSV</button>
+      <button type="button" class="btn alt" id="hist-copy">Copy CSV</button>
+      <button type="button" class="btn alt" id="hist-clear">Clear</button>
+    </div>
+    <p id="hist-msg" role="status" class="muted"></p>
+    <details><summary>CSV for data/raw/histograms/star_histograms.csv</summary><textarea id="hist-csv" readonly rows="7" aria-label="CSV output"></textarea></details>
+    <p class="muted">Preview NPS uses the same rules as the pipeline but is <b>not</b> in the report yet. To apply: replace
+      <code>data/raw/histograms/star_histograms.csv</code> with the CSV and run <code>make all</code>, or send it to Claude.</p>
+  </section>
+
   <section id="export">
     <h2>Report &amp; Export</h2>
     <p><a class="btn" id="pdf-link" href="report.pdf" download="SilkRoadSalts_Loyalty_Analysis.pdf">Export Analysis as PDF</a></p>
@@ -82,5 +104,6 @@
   </section>
 </main>
 <script src="app.js"></script>
+<script src="histogram-entry.js"></script>
 </body>
 </html>

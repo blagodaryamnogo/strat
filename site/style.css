@@ -27,3 +27,24 @@ tbody tr:hover { background:#fbf8f2; cursor:pointer; }
 .btn { display:inline-block; background:var(--ink); color:#fff; padding:9px 16px; border-radius:4px; text-decoration:none; }
 .pos { color:var(--green); } .neg { color:var(--red); }
 @media (max-width:700px){ table { display:block; overflow-x:auto; } section { padding:14px; } }
+
+/* star-histogram entry */
+[hidden] { display:none !important; }
+#hist-table input { width:100%; min-width:3.2em; padding:4px 5px; font:inherit; font-size:13px; border:1px solid var(--line); border-radius:3px; background:var(--card); color:inherit; }
+#hist-table input.pct { width:3.6em; } #hist-table input.num { min-width:6.5em; } #hist-table input.avg { width:3.4em; }
+#hist-table input[type=date] { min-width:9.5em; } #hist-table input.who { min-width:4.5em; } #hist-table input.note { min-width:8em; }
+#hist-table td { padding:6px 4px; } #hist-table tbody tr:hover { background:none; cursor:default; }
+.hist-status { min-width:11em; font-size:13px; } .hist-status.ok b { color:var(--green); } .err { color:var(--red); }
+.hist-actions { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+button.btn { border:0; font:inherit; font-size:14px; cursor:pointer; } .btn.alt { background:transparent; color:var(--ink); border:1px solid var(--ink); }
+#hist-csv { width:100%; font-family:ui-monospace, monospace; font-size:12px; margin-top:6px; background:var(--card); color:inherit; border:1px solid var(--line); }
+@media (max-width:700px){
+  .filters select { max-width:100%; }
+  #hist-table, #hist-table tbody { display:block; overflow:visible; } #hist-table thead { display:none; }
+  #hist-table tr { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px 8px; padding:10px 0; border-bottom:1px solid var(--line); }
+  #hist-table td { display:block; border:0; padding:0; }
+  #hist-table td:first-child, #hist-table td.hist-status { grid-column:1 / -1; }
+  #hist-table td[data-l] { grid-column:span 5; } #hist-table td.star { grid-column:span 1; }
+  #hist-table td[data-l]::before { content:attr(data-l); display:block; font-size:12px; color:var(--muted); }
+  #hist-table input, #hist-table input.pct, #hist-table input.avg { width:100%; min-width:0; }
+}

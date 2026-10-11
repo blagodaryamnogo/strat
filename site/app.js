@@ -1,4 +1,5 @@
-// Renders analysis.json + reviews.json. No numbers are computed here except filtering/counting rows.
+// Renders analysis.json + reviews.json. No numbers are computed here except filtering/counting rows
+// (the labelled histogram-entry preview lives in histogram-entry.js).
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (v) => (v == null ? "N/A" : v.toFixed(1) + "%");

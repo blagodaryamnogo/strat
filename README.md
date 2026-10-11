@@ -3,24 +3,27 @@
 BYU STRAT 560 — review-derived Net Promoter Score for five specialty-salt competitors on Amazon US,
 and a "Where Should Silk Road Salts Compete?" startup analysis.
 
-## Current data status (live collection 2026-10-11)
+## Current data status
 
-1,264 distinct Amazon US written reviews retrieved through the Woot review endpoint (`make collect`), all traceable to
-`data/raw/{ASIN}/combo_s*_o*.json`. The endpoint caps each star-filter x sort query at 100 reviews (~110-125 distinct
-per star after four sort orders):
+**Headline scores: Amazon star histograms** (all five listings, hand-recorded 2026-10-10 via the web app's Star Histograms
+form; `data/raw/histograms/star_histograms.csv`). Each NPS carries up to ±2 points of rounding error from Amazon's whole-percent display.
 
-| Competitor | n | Capped star buckets | Treatment |
-|---|---|---|---|
-| The Spice Lab | 41 | none | ranked; below 50-review target |
-| Jacobsen Salt Co. | 175 | 5★ | ranked; NPS is a lower bound |
-| SaltWorks | 40 | none | ranked; below 50-review target |
-| Maldon Salt | 511 | 5/4/3/1★ | **not ranked**: star mix set by the cap, NPS not comparable |
-| Redmond Real Salt | 497 | 5/4/1★ | **not ranked**: star mix set by the cap, NPS not comparable |
+| Competitor | Amazon ratings | 5/4/3/2/1 ★ % | Histogram NPS | Rank |
+|---|---|---|---|---|
+| The Spice Lab | 63 | 92/4/0/4/0 | +88 | 1 |
+| Maldon Salt | 47,071 | 89/8/3/0/0 | +86 | 2 |
+| Redmond Real Salt | 24,210 | 90/6/2/1/1 | +86 | 2 |
+| SaltWorks | 973 | 85/10/3/1/1 | +80 | 4 |
+| Jacobsen Salt Co. | 1,275 | 83/8/4/2/3 | +74 | 5 |
 
-Not-comparable samples keep their sample NPS in tables (for transparency) but are excluded from ranks, charts and the
-wedge test (`sample_validity` in `pipeline/analyze.py`). No alternative ASIN was found for SaltWorks or The Spice Lab
-(see `low_n_investigation` in `pipeline/products.py`). amazon.com remains blocked, so the true star distributions
-cannot be used to reweight.
+The top three are within rounding error of each other. Jacobsen meets the wedge rule (volume ≥ median, NPS < median) but only by
+sitting exactly at the median volume (3rd of 5), which the report states.
+
+**Written reviews** (themes and quotes): 1,264 distinct Amazon US reviews retrieved through the Woot review endpoint
+(`make collect`, 2026-10-11), traceable to `data/raw/{ASIN}/combo_s*_o*.json`. The endpoint caps each star-filter × sort query at
+100 reviews (~110–125 distinct per star), so Maldon's (5/4/3/1★) and Redmond's (5/4/1★) samples have a cap-set star mix; their
+sample NPS is shown for reference only. If the histogram file is incomplete, the pipeline falls back to the sample scores and
+leaves capped samples unranked (`sample_validity` in `pipeline/analyze.py`).
 
 ```bash
 make collect   # live retrieval (needs network access to www.woot.com)

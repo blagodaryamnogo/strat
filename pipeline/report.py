@@ -80,6 +80,13 @@ def startup_text(a, reviews_by_id):
         if lb:
             ov += " Lower bound only (5&#9733; bucket capped): " + "; ".join(f"{escape(c['competitor'])} ({sgn(c['nps'])})" for c in lb) + "."
     else:
+        tied = [c for c in scored if hl(c)["nps"] >= hl(top_c)["nps"] - 4]
+        if len(tied) > 1:
+            ov += (" " + ", ".join(f"{escape(c['competitor'])} ({sgn(hl(c)['nps'])})" for c in tied) +
+                   " are within the combined rounding error (&plusmn;2 pts each) of one another, so their order is not meaningful.")
+        few = [c for c in scored if hl(c)["volume"] < 100]
+        if few:
+            ov += " Small rating base: " + "; ".join(f"{escape(c['competitor'])} ({hl(c)['volume']} ratings)" for c in few) + "."
         ov += (" Written-review samples (used below for themes and quotes) are capped at ~110&ndash;125 reviews per star, so their sample NPS is shown for reference only.")
     ov += "</p>"
     if excl:
@@ -93,6 +100,12 @@ def startup_text(a, reviews_by_id):
         cands = [c for c in scored if c["competitor"] in w["candidates"]]
         txt = "; ".join(f"{escape(c['competitor'])} ({vol(c)}, NPS {sgn(hl(c)['nps'])}" +
                         ("" if hist else f", 95% CI {c['ci95_low']:+.0f} to {c['ci95_high']:+.0f}") + ")" for c in cands)
+        at_median = [c for c in cands if hl(c)["volume"] == w["median_volume"]]
+        if at_median:
+            order = sorted(scored, key=lambda c: -hl(c)["volume"])
+            txt += (". " + "; ".join(f"{escape(c['competitor'])} qualifies on volume only by sitting exactly at the median "
+                                     f"({order.index(c) + 1} of {len(order)} by volume, well below {escape(order[0]['competitor'])} at {hl(order[0])['volume']:,})"
+                                     for c in at_median))
         blocks.append(("2. Entry wedge (measured)",
                        f"<p>Rule: {vname} &ge; median ({w['median_volume']:,.0f}) and baseline NPS below median ({w['median_nps']:+.1f}). "
                        f"Qualifying: {txt}. " + ("Ratings count is a proxy for sales, not a measure of it, so this is a candidate wedge, not a proven one.</p>" if hist else
@@ -195,7 +208,7 @@ body {{ font: 10pt/1.42 Helvetica, Arial, sans-serif; color:#1f2a44; background:
 h1 {{ font-size:17pt; margin:0 0 2pt }} h2 {{ font-size:13pt; color:#b0703c; border-bottom:1px solid #e4ddd0; padding-bottom:3pt; margin:12pt 0 6pt }}
 h3 {{ font-size:10.5pt; margin:9pt 0 3pt }} p {{ margin:3pt 0 }} .muted {{ color:#6b6f76; font-size:8.5pt }}
 table {{ border-collapse:collapse; width:100%; font-size:9pt; margin:5pt 0 }} th,td {{ border-bottom:1px solid #e4ddd0; padding:3pt 4pt; text-align:left; vertical-align:top }}
-th {{ background:#f6f1e7 }} tr {{ break-inside:avoid }} td.n {{ text-align:right; white-space:nowrap }} a {{ color:#1f2a44 }}
+th {{ background:#f6f1e7 }} tr, table {{ break-inside:avoid }} td.n {{ text-align:right; white-space:nowrap }} a {{ color:#1f2a44 }}
 .page {{ break-after:page }} .page:last-child {{ break-after:auto }} .flow + section h2 {{ margin-top:16pt }} svg {{ max-width:100%; height:auto }} .sm svg {{ width:64%; }} .sc svg {{ width:70%; }}
 .quote {{ border-left:3px solid #b0703c; padding:3pt 8pt; margin:5pt 0; font-size:9pt; break-inside:avoid }}
 .alert {{ background:#fbeee9; border:1px solid #a4483e; padding:6pt 8pt; margin:6pt 0; font-size:9.5pt }}

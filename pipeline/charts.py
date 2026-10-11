@@ -64,20 +64,38 @@ def scatter(analysis):
     else:
         xmax = hi * 1.15
         sx = lambda v: l + v / xmax * (w - l - r)
-    sy = lambda v: t + (100 - v) / 200 * (h - t - b)
+    # y range fitted to the data (multiples of 10, always including the median line), so close scores stay readable
+    ys = [c["nps"] for c in rows] + ([analysis["wedge"]["median_nps"]] if "median_nps" in analysis["wedge"] else [])
+    y0 = max(-100, math.floor((min(ys) - 8) / 10) * 10)
+    y1 = min(100, math.ceil((max(ys) + 8) / 10) * 10)
+    if y1 - y0 < 30:
+        y1 = min(100, y0 + 30); y0 = y1 - 30
+    sy = lambda v: t + (y1 - v) / (y1 - y0) * (h - t - b)
+    ticks = [v for v in range(-100, 101, 10 if y1 - y0 <= 60 else 50) if y0 <= v <= y1]
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}" font-family="Helvetica, Arial, sans-serif">',
            f'<text x="0" y="16" font-size="13" font-weight="600" fill="{INK}">Loyalty vs. review volume</text>']
-    for v in (-100, -50, 0, 50, 100):
+    for v in ticks:
         out.append(f'<line x1="{l}" x2="{w-r}" y1="{sy(v)}" y2="{sy(v)}" stroke="{GRID}"/><text x="{l-8}" y="{sy(v)+4}" font-size="10" text-anchor="end" fill="{MUTED}">{v:+d}</text>')
     wd = analysis["wedge"]
     if "median_volume" in wd:
         out.append(f'<line x1="{sx(wd["median_volume"])}" x2="{sx(wd["median_volume"])}" y1="{t}" y2="{h-b}" stroke="{COPPER}" stroke-dasharray="4 4"/>'
                    f'<line x1="{l}" x2="{w-r}" y1="{sy(wd["median_nps"])}" y2="{sy(wd["median_nps"])}" stroke="{COPPER}" stroke-dasharray="4 4"/>'
                    f'<text x="{w-r-4}" y="{h-b-6}" font-size="10" text-anchor="end" fill="{COPPER}">wedge zone: high volume, below-median NPS</text>')
-    for c in rows:
+    placed = []  # label boxes already drawn: (x0, y0, x1, y1)
+    for c in sorted(rows, key=lambda c: c["n"]):
         x, y = sx(c["n"]), sy(c["nps"])
         right = x > w * 0.6
-        out.append(f'<circle cx="{x}" cy="{y}" r="6" fill="{INK}"/><text x="{x-9 if right else x+9}" y="{y-8}" font-size="11" text-anchor="{"end" if right else "start"}" fill="{INK}">{escape(c["competitor"])} ({c["nps"]:+d}, {"ratings" if hist else "n"}={c["n"]:,})</text>')
+        text = f'{c["competitor"]} ({c["nps"]:+d}, {"ratings" if hist else "n"}={c["n"]:,})'
+        tw = len(text) * 6.0
+        box = None
+        for dy in (-8, 18, -24, 34):  # above, below, further above, further below
+            bx0 = x - 9 - tw if right else x + 9
+            cand = (bx0, y + dy - 11, bx0 + tw, y + dy + 3)
+            if not any(cand[0] < q[2] and q[0] < cand[2] and cand[1] < q[3] and q[1] < cand[3] for q in placed):
+                box = (cand, dy); break
+        box = box or (cand, dy)
+        placed.append(box[0])
+        out.append(f'<circle cx="{x}" cy="{y}" r="6" fill="{INK}"/><text x="{x-9 if right else x+9}" y="{y+box[1]}" font-size="11" text-anchor="{"end" if right else "start"}" fill="{INK}">{escape(text)}</text>')
     if excl:
         out.append(f'<text x="0" y="{h-4}" font-size="10" fill="{MUTED}">Not plotted (capped samples, NPS not comparable): {escape(", ".join(excl))}</text>')
     out.append(f'<text x="{(l+w-r)/2}" y="{h-12-(16 if excl else 0)}" font-size="11" text-anchor="middle" fill="{MUTED}">'

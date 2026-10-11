@@ -87,7 +87,7 @@ def startup_text(a, reviews_by_id):
         few = [c for c in scored if hl(c)["volume"] < 100]
         if few:
             ov += " Small rating base: " + "; ".join(f"{escape(c['competitor'])} ({hl(c)['volume']} ratings)" for c in few) + "."
-        ov += (" Written-review samples (used below for themes and quotes) are capped at ~110&ndash;125 reviews per star, so their sample NPS is shown for reference only.")
+        pass
     ov += "</p>"
     if excl:
         ov += ("<p><b>Not comparable:</b> " + "; ".join(
@@ -124,16 +124,15 @@ def startup_text(a, reviews_by_id):
         f"<td>{escape(', '.join(f'{k} ({v})' for k, v in t['detractor_mentions_by_competitor'].items()))}</td>"
         f"<td>{escape(RESPONSES[t['theme']])}</td></tr>" for t in top)
     blocks.append(("3. Customer dissatisfaction evidence &rarr; Silk Road response (hypothesis)",
-                   f"<p>Keyword-rule coding of {a['detractor_total']} retrieved detractor (1&ndash;3&#9733;) reviews. A review can match several themes; "
-                   "capped retrieval over-samples detractors of the most-reviewed products, so counts show what complaints say, not how common they are among buyers; "
-                   "rules are in pipeline/analyze.py and every match stores its review ID.</p>"
-                   "<table><tr><th>Theme</th><th>Detractor reviews</th><th>% of detractors</th><th>Competitors</th><th>Proposed response (untested)</th></tr>"
+                   f"<p>Keyword rules over {a['detractor_total']} retrieved detractor (1&ndash;3&#9733;) reviews (a review can match several themes; rules and matched IDs in pipeline/analyze.py). "
+                   "Capped retrieval over-samples the most-reviewed products, so counts show what complaints say, not how common they are.</p>"
+                   "<table class=themes><tr><th style='width:21%'>Theme</th><th style='width:8%'>Reviews</th><th style='width:9%'>% of det.</th><th style='width:32%'>Competitors</th><th style='width:30%'>Proposed response (untested)</th></tr>"
                    f"{rows or '<tr><td colspan=5>No theme matched any detractor review.</td></tr>'}</table>"))
     ex = []
     for t in top[:2]:
         for rid in t["example_review_ids"][:1]:
             r = reviews_by_id[rid]
-            ex.append(f"<li><i>&ldquo;{escape(trim(r['review_text']))}&rdquo;</i> &mdash; {r['rating']}&#9733;, {escape(r['competitor'])}, id {rid} ({escape(t['theme'])})</li>")
+            ex.append(f"<li><i>&ldquo;{escape(trim(r['review_text'], 100))}&rdquo;</i> &mdash; {r['rating']}&#9733;, {escape(r['competitor'])}, id {rid} ({escape(t['theme'])})</li>")
     if ex:
         blocks.append(("Representative complaint excerpts", "<ul>" + "".join(ex) + "</ul>"))
     blocks.append(("4. Positioning, target customer &amp; validation (proposals, not evidence)",
@@ -143,8 +142,8 @@ def startup_text(a, reviews_by_id):
                    "<ol><li><b>Smoke test:</b> landing page with 3 SKUs and a gift set; measure email sign-up rate from ~$200 of targeted ads.</li>"
                    "<li><b>Packaging test:</b> mail 20 home cooks a pouch vs. a resealable tin; survey clumping/spillage after 4 weeks.</li>"
                    "<li><b>Blind taste panel:</b> 15&ndash;20 participants compare an infused prototype vs. a leading competitor; ask a true NPS question.</li></ol>"
-                   "<p><b>Key uncertainties:</b> retrieval caps, one SKU per brand, review volume &ne; sales, keyword coding misses sarcasm/negation, "
-                   "and no evidence yet that customers will pay a premium for infusion or provenance.</p>"))
+                   "<p><b>Key uncertainties:</b> one SKU per brand; ratings &ne; sales; keyword coding misses sarcasm/negation; "
+                   "no evidence yet that buyers pay more for infusion or provenance.</p>"))
     return blocks
 
 
@@ -176,8 +175,9 @@ def build_html(a, reviews):
                       "<p class=muted>Star shares from each listing's rating histogram, hand-recorded (data/raw/histograms/star_histograms.csv), normalized to their sum. "
                       "Amazon rounds each share to a whole percent, so each NPS carries up to &plusmn;2 points of rounding error. "
                       "Histograms include star-only ratings and are labeled 'global ratings' by Amazon.</p>")
-        sample_section = ("<h3>Written-review sample (reference only; used for themes and quotes)</h3>" + sample_table +
-                          "<p class=muted>Retrieval capped each star bucket at ~110&ndash;125 reviews, so sample shares reflect the cap for heavily reviewed products.</p>")
+        sample_section = ("<p><b>Written-review samples</b> (used only for themes and quotes; retrieval capped each star at ~110&ndash;125 reviews, "
+                          "so their star mix is not a loyalty measure). n and sample NPS: " +
+                          "; ".join(f"{escape(c['competitor'])} {c['n']} ({sgn(c['nps'])})" for c in a["competitors"]) + ".</p>")
     else:
         main_table, sample_section = sample_table, ""
     hrow = (lambda c: (c["headline"]["nps"], c["headline"]["alt_nps"], c["headline"]["alt_nps_exact"] - c["headline"]["nps_exact"],
@@ -186,14 +186,20 @@ def build_html(a, reviews):
         f"<tr><td>{escape(c['competitor'])}</td><td class=n>{sgn(hrow(c)[0])}</td><td class=n>{sgn(hrow(c)[1])}</td>"
         f"<td class=n>{'N/A' if hrow(c)[2] is None else f'+{hrow(c)[2]:.1f}'}</td><td class=n>{pct(hrow(c)[3])}</td>"
         f"<td class=n>{c['rank'] or '–'} &rarr; {c['alt_rank'] or '–'}</td></tr>" for c in a["competitors"])
+    ds = [hrow(c)[2] for c in a["competitors"] if hrow(c)[2] is not None]
+    moves = [f"{escape(c['competitor'])} {c['rank']}&rarr;{c['alt_rank']}" for c in a["competitors"] if c["rank"] and c["alt_rank"] and c["rank"] != c["alt_rank"]]
+    four_star = ("" if not ds else
+                 f"<p><b>If 4&#9733; reviews move to promoter,</b> every score rises by exactly its 4&#9733; share "
+                 f"(+{min(ds):.1f} to +{max(ds):.1f} points here). "
+                 + (f"Rank changes: {'; '.join(moves)}; all others keep their rank." if moves else "No competitor changes rank.") + "</p>")
     ex_html = ""
     for label, key in (("5&#9733; Promoter", "promoter_5"), ("4&#9733; Passive", "passive_4"), ("1&ndash;3&#9733; Detractor", "detractor_1_3")):
         rid = a["excerpts"][key]
         if rid:
             r = by_id[rid]
             ex_html += (f"<div class=quote><b>{label}</b> &mdash; {escape(r['competitor'])}, {r['rating']}&#9733;, {r['review_date'] or 'date n/a'}, "
-                        f"id {rid}, source: {escape(r['collection_source'])} (<a href='{r['source_product_url']}'>product page</a>)"
-                        f"<br><i>&ldquo;{escape(trim(r['review_text'], 300))}&rdquo;</i></div>")
+                        f"id {rid}, Amazon US review via Woot endpoint (<a href='{r['source_product_url']}'>product page</a>)"
+                        f"<br><i>&ldquo;{escape(trim(r['review_text'], 220))}&rdquo;</i></div>")
         else:
             ex_html += f"<div class=quote><b>{label}</b>: no genuine review available &mdash; none shown.</div>"
     no_data = "" if a["status"] == "ok" else (
@@ -209,7 +215,7 @@ h1 {{ font-size:17pt; margin:0 0 2pt }} h2 {{ font-size:13pt; color:#b0703c; bor
 h3 {{ font-size:10.5pt; margin:9pt 0 3pt }} p {{ margin:3pt 0 }} .muted {{ color:#6b6f76; font-size:8.5pt }}
 table {{ border-collapse:collapse; width:100%; font-size:9pt; margin:5pt 0 }} th,td {{ border-bottom:1px solid #e4ddd0; padding:3pt 4pt; text-align:left; vertical-align:top }}
 th {{ background:#f6f1e7 }} tr, table {{ break-inside:avoid }} td.n {{ text-align:right; white-space:nowrap }} a {{ color:#1f2a44 }}
-.page {{ break-after:page }} .page:last-child {{ break-after:auto }} .flow + section h2 {{ margin-top:16pt }} svg {{ max-width:100%; height:auto }} .sm svg {{ width:64%; }} .sc svg {{ width:70%; }}
+.page {{ break-after:page }} .page:last-child {{ break-after:auto }} ul.lim {{ font-size:8.5pt; line-height:1.3; margin:2pt 0; padding-left:14pt }} th {{ white-space:nowrap }} svg {{ max-width:100%; height:auto }} .sm svg {{ width:64%; }} .sc svg {{ width:50%; }} .track {{ font-size:9.2pt; line-height:1.34 }} .track table {{ font-size:8.6pt }} .track h3 {{ margin:6pt 0 2pt }} table.themes {{ table-layout:fixed }} table.themes th {{ white-space:normal }}
 .quote {{ border-left:3px solid #b0703c; padding:3pt 8pt; margin:5pt 0; font-size:9pt; break-inside:avoid }}
 .alert {{ background:#fbeee9; border:1px solid #a4483e; padding:6pt 8pt; margin:6pt 0; font-size:9.5pt }}
 </style></head><body>
@@ -222,16 +228,15 @@ th {{ background:#f6f1e7 }} tr, table {{ break-inside:avoid }} td.n {{ text-alig
 <h3>Bucket boundaries</h3><p><b>Promoter = 5&#9733;; Passive = 4&#9733;; Detractor = 1&ndash;3&#9733;.</b> NPS = %Promoters &minus; %Detractors, computed at full precision and rounded to a whole number. Five stars is the clearest written expression of enthusiasm; four-star reviews frequently carry reservations, mirroring the survey's 7&ndash;8 "passive" band; 1&ndash;3 stars signal dissatisfaction or materially qualified experience. These thresholds are judgment calls, so a sensitivity test follows. This is a <b>Review-Derived NPS</b>, not an official survey NPS.</p>
 <div class=sm>{charts.bar(a)}</div>
 </section>
-<section class={"flow" if hist else "page"}><h2>2. Methodology, Sensitivity &amp; Evidence</h2>
+<section class=page><h2>2. Methodology, Sensitivity &amp; Evidence</h2>
 <h3>Alternative specification: 4&ndash;5&#9733; = Promoter, 1&ndash;3&#9733; = Detractor, no Passives</h3>
-<table><tr><th>Competitor</th><th>Baseline NPS</th><th>Alternative NPS</th><th>Change (pts, exact)</th><th>4&#9733; share</th><th>Rank: base &rarr; alt</th></tr>{sens}</table>
+{four_star}<table><tr><th>Competitor</th><th>Baseline NPS</th><th>Alternative NPS</th><th>Change (pts, exact)</th><th>4&#9733; share</th><th>Rank: base &rarr; alt</th></tr>{sens}</table>
 <p class=muted>{"Computed on the Amazon star histograms (headline basis)." if hist else 'Ranks are given only for comparable samples ("&ndash;" = not ranked, see section 1).'} The exact change always equals the 4&#9733; share; displayed rounded values can differ by &plusmn;1 point due to rounding.</p>
 {sample_section}
 <h3>Three classified excerpts (verbatim, from stored records)</h3>{ex_html}
-<h3>Selection bias</h3><p><b>{BIAS}</b></p><ul>{lim}</ul></section>
-<section class=page><h2>3. Where Should Silk Road Salts Compete?</h2>
+<h3>Selection bias</h3><p><b>{BIAS}</b></p><h3>Other limitations</h3><ul class=lim>{lim}</ul></section>
+<section class="page track"><h2>3. Where Should Silk Road Salts Compete?</h2>
 <div class=sc>{charts.scatter(a)}</div>
-<p class=muted>X-axis: {escape(a['volume_metric'])}.</p>
 {startup}</section>
 </body></html>"""
 

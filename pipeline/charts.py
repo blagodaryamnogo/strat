@@ -53,7 +53,7 @@ def scatter(analysis):
     rows = [{"competitor": c["competitor"], "nps": _hl(c)["nps"], "n": _hl(c)["volume"]} for c in analysis["competitors"] if _hl(c)["comparable"]]
     excl = _excluded(analysis)
     hist = analysis.get("primary_metric") == "histogram"
-    w, h, l, r, t, b = 640, 360 + (16 if excl else 0), 60, 20, 30, 50 + (16 if excl else 0)
+    w, h, l, r, t, b = 640, 300 + (16 if excl else 0), 60, 20, 30, 50 + (16 if excl else 0)
     if not rows:
         return _empty(w, 200, "Loyalty vs. volume chart requires scored reviews")
     lo, hi = min(c["n"] for c in rows), max(c["n"] for c in rows)
@@ -75,7 +75,7 @@ def scatter(analysis):
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}" font-family="Helvetica, Arial, sans-serif">',
            f'<text x="0" y="16" font-size="13" font-weight="600" fill="{INK}">Loyalty vs. review volume</text>']
     for v in ticks:
-        out.append(f'<line x1="{l}" x2="{w-r}" y1="{sy(v)}" y2="{sy(v)}" stroke="{GRID}"/><text x="{l-8}" y="{sy(v)+4}" font-size="10" text-anchor="end" fill="{MUTED}">{v:+d}</text>')
+        out.append(f'<line x1="{l}" x2="{w-r}" y1="{sy(v)}" y2="{sy(v)}" stroke="{GRID}"/><text x="{l-8}" y="{sy(v)+4}" font-size="11" text-anchor="end" fill="{MUTED}">{v:+d}</text>')
     wd = analysis["wedge"]
     if "median_volume" in wd:
         out.append(f'<line x1="{sx(wd["median_volume"])}" x2="{sx(wd["median_volume"])}" y1="{t}" y2="{h-b}" stroke="{COPPER}" stroke-dasharray="4 4"/>'

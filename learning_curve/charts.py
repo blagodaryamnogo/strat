@@ -36,10 +36,11 @@ def experience_curve_figure(an: Analysis):
     ax.scatter(x, y, s=36, color=POINT, zorder=3, label="Observed periods")
     xs = np.geomspace(x.min(), x.max(), 100)
     ax.plot(xs, reg.a * xs ** (-reg.b), color=LINE, lw=1.8, zorder=2,
-            label=f"Fitted: {equation_text(reg)}")
-    for r, xi, yi in ((rows[0], x[0], y[0]), (rows[-1], x[-1], y[-1])):
-        ax.annotate(r["period"], (xi, yi), textcoords="offset points", xytext=(6, 6),
-                    fontsize=8, color=MUTED)
+            label=f"Fitted: {equation_text(reg, an.unit_cost_label)}")
+    # Label the first and last points, placed inside the axes so labels never run into the title or edge.
+    ax.annotate(rows[0]["period"], (x[0], y[0]), textcoords="offset points", xytext=(6, 6), fontsize=8, color=MUTED)
+    ax.annotate(rows[-1]["period"], (x[-1], y[-1]), textcoords="offset points", xytext=(-8, 0), ha="right",
+                va="center", fontsize=8, color=MUTED)
 
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -51,19 +52,23 @@ def experience_curve_figure(an: Analysis):
         axis.set_minor_formatter(FuncFormatter(lambda *_: ""))
     unit = an.unit_definition or "units"
     ax.set_xlabel(f"Cumulative units since start of window ({unit}, log scale)", color=INK)
-    ax.set_ylabel(f"Unit COGS ({an.currency} per unit, log scale)", color=INK)
-    ax.set_title(f"{an.company} ({an.ticker}) — experience curve, {an.date_range}", fontsize=11,
+    ax.set_ylabel(f"{an.unit_cost_label} ({an.currency} per unit, log scale)", color=INK)
+    ax.set_title(f"{an.company} ({an.ticker}){' ' + an.segment if an.segment else ''} — experience curve, "
+                 f"{an.date_range}", fontsize=11,
                  color=INK, loc="left")
-    ax.text(0.98, 0.97,
+    # Statistics box in the corner the data leave empty: a falling curve (b ≥ 0) leaves the upper right free,
+    # a rising curve (negative learning rate) leaves the lower right free.
+    top = reg.b >= 0
+    ax.text(0.98, 0.97 if top else 0.03,
             f"Learning rate {fmt_pct(reg.learning_rate)}\nb = {fmt_b(reg.b)}   R² = {fmt_r2(reg.r2)}\n"
             f"n = {reg.n} {an.frequency} observations",
-            transform=ax.transAxes, ha="right", va="top", fontsize=9, color=INK,
+            transform=ax.transAxes, ha="right", va="top" if top else "bottom", fontsize=9, color=INK,
             bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cbd2d9"))
     ax.grid(True, which="major", color="#e4e7eb", lw=0.8)
     ax.grid(True, which="minor", color="#f2f4f6", lw=0.5)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
-    ax.legend(loc="lower left", fontsize=8, frameon=False)
+    ax.legend(loc="best", fontsize=8, frameon=True, facecolor="white", edgecolor="#cbd2d9", framealpha=0.95)
     fig.tight_layout()
     return fig
 

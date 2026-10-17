@@ -117,3 +117,19 @@ The app, chart, CSV and PDF are all generated from one `Analysis` object, using 
 The PDF is built from that object without re-fetching. A short fingerprint of the inputs (periods, values,
 accessions, unit sources, method) is printed in the app and the PDF. Identical inputs give an identical
 fingerprint and identical results.
+
+## 8. Segment cost basis
+
+* Segment figures are not in the Company Facts API (consolidated, non-dimensional facts only). They are supplied
+  as a CSV transcribed from the filings, with the form, accession number, filing date, note or table, and
+  derivation for every cost and unit figure (see `segment_data.py`). Rows with malformed accession numbers,
+  missing citations, non-positive values or duplicate periods are rejected.
+* The latest filing that reports a period is used, as for XBRL data; earlier differing figures are listed as
+  restatement notes.
+* Costs and units must come from the same segment. Consolidated COGS is never mixed with segment units.
+* A period that is not a full fiscal year (for example a transition period after a change of fiscal year-end) may
+  be marked `include_in_regression = no` with a reason. Its units still add to cumulative volume, so there is no
+  gap in N, but it is not a regression observation. Without such a reason, a non-annual period blocks the
+  calculation.
+* When cumulative volume grows almost linearly with time (correlation ≥ 0.98, i.e. stable volume per period), the
+  interpretation states that the fit cannot separate volume effects from cost changes over time.

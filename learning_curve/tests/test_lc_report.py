@@ -27,7 +27,7 @@ def test_pdf_structure_text_chart_and_sources(freq):
     flat = " ".join(text.split())
     assert 2 <= len(reader.pages) <= 6
     for needle in ["Learning-Curve Calculator", f"Public Tool URL: {URL}", "Analysis Results",
-                   "Data, Sources, and Methodology", "Interpretation", "Methodology", "Limitations",
+                   "Data, Sources, and Methodology", "Interpretation", "Methodology", "Assumptions and limitations",
                    "Period-level calculation", "SEC sources for COGS", "Unit volume sources",
                    fmt_pct(an.regression.learning_rate), fmt_b(an.regression.b), fmt_r2(an.regression.r2),
                    "CostOfGoodsAndServicesSold", an.company, freq.capitalize(),
@@ -108,3 +108,26 @@ def test_chart_tick_labels_parse_back_to_tick_values():
         text = _tick(t, None)
         num = float(text[:-1].replace(",", "")) * mult[text[-1]] if text[-1] in mult else float(text.replace(",", ""))
         assert num == pytest.approx(t, rel=0.01)
+
+
+def _hidden_points(an):
+    fig = experience_curve_figure(an)
+    fig.canvas.draw()
+    ax = fig.axes[0]
+    renderer = fig.canvas.get_renderer()
+    boxes = [t.get_bbox_patch().get_window_extent(renderer) for t in ax.texts if t.get_bbox_patch()]
+    boxes.append(ax.get_legend().get_window_extent(renderer))
+    pts = ax.transData.transform(ax.collections[0].get_offsets())
+    return [tuple(p) for p in pts for b in boxes if b.contains(*p)]
+
+
+@pytest.mark.parametrize("freq", ["annual", "quarterly"])
+def test_no_data_point_hidden_by_stats_box_or_legend_falling_curve(freq):
+    assert _hidden_points(synthetic_analysis(freq)) == []
+
+
+def test_no_data_point_hidden_by_stats_box_or_legend_rising_curve():
+    from test_lc_segment import analysis as segment_analysis
+    an = segment_analysis()
+    assert an.regression.b < 0
+    assert _hidden_points(an) == []

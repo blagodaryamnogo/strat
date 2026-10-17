@@ -110,3 +110,67 @@ def test_tesla_end_to_end_with_10k_delivery_figures(client):
     assert an.regression.b == pytest.approx(0.0371, abs=5e-5)
     assert an.regression.r2 == pytest.approx(0.414, abs=5e-4)
     assert any("Scope mismatch" in w for w in an.warnings)
+
+
+# ---- Compass Minerals Salt segment: every figure in the example CSV against its cited filing ----------
+def _filing_text(client, cik, accession, cache):
+    import html as _html
+    import re as _re
+    import requests
+    from sec_client import filing_document_url, primary_documents
+    if accession not in cache:
+        docs = primary_documents(client.submissions(cik))
+        url = filing_document_url(cik, accession, docs.get(accession))
+        raw = requests.get(url, headers={"User-Agent": client.user_agent}, timeout=120).text
+        cache[accession] = _re.sub(r"\s+", " ", _html.unescape(_re.sub(r"<[^>]+>", " ", raw)))
+    return cache[accession]
+
+
+def _header_dates(header):
+    """Period-end dates named in a table header, in column order (bare years mean December 31)."""
+    from datetime import date as _date
+    months = {"September": 9, "December": 12}
+    out = []
+    for m in re.finditer(r"(September|December) (\d{1,2}), (\d{4})|(?<![\d,])(20\d{2})(?![\d,])", header):
+        out.append(_date(int(m.group(3)), months[m.group(1)], int(m.group(2))) if m.group(1)
+                   else _date(int(m.group(4)), 12, 31))
+    return out
+
+
+def test_compass_salt_csv_figures_match_cited_filings(client):
+    from pathlib import Path
+    from datetime import date as _date
+    from segment_data import parse_segment_csv
+    csv_path = Path(__file__).resolve().parents[1] / "examples" / "cmp_salt_segment_2015_2025.csv"
+    import csv as _csv
+    rows = list(_csv.DictReader(l for l in csv_path.read_text().splitlines() if not l.startswith("#")))
+    series, inputs, meta, errors = parse_segment_csv(csv_path.read_bytes(), 1227654, {})
+    assert not errors
+    cache = {}
+    num = r"\(?\s*[\d,]+\.?\d*\s*\)?"
+    for r in rows:
+        end = _date.fromisoformat(r["period_end"])
+        sales, sh, op, total = (float(x.replace(",", "")) for x in re.findall(r"\$([\d,]+\.\d)M", r["cost_derivation"]))
+        text = _filing_text(client, 1227654, r["cost_accession"], cache)
+        found = False
+        for m in re.finditer(r"((?:Fiscal Year Ended (?:September|December) \d{2}, \d{4})|(?:Nine Months Ended "
+                             r"September 30, \d{4})|(?<![\d,.$])(?:20\d{2}))\s+Salt\s+Plant Nutrition[^$]{0,120}?"
+                             r"Total\s+Sales to external customers(?: \(b\))?\s*\$\s*(" + num + ")", text):
+            if float(m.group(2).replace(",", "")) != sales or end not in _header_dates(m.group(1)):
+                continue
+            block = text[m.start():m.start() + 1600]
+            got_sh = re.search(r"Shipping and handling cost\s*\$?\s*(" + num + ")", block).group(1)
+            got_op = re.search(r"Operating (?:earnings|income) \(loss\)(?:\s*\([a-z]\))*\s*\$?\s*(" + num + ")", block).group(1)
+            if float(got_sh.replace(",", "")) == sh and float(got_op.replace(",", "")) == op:
+                found = True
+        assert found, f"{r['period_label']}: Salt sales/S&H/operating earnings not found in {r['cost_accession']}"
+        # Tons: the MD&A Salt Segment Results table of the cited filing, column for this period end
+        text = _filing_text(client, 1227654, r["units_accession"], cache)
+        kt = int(float(r["units"]) / 1000)
+        ok = False
+        for m in re.finditer(r"SALT SEGMENT RESULTS(.{0,200}?)Salt Sales \(in millions\).{0,400}?Total tons sold "
+                             r"((?:[\d,]+\s+){1,4})", text):
+            dates = _header_dates(m.group(1))
+            tons = [int(x.replace(",", "")) for x in m.group(2).split()]
+            ok |= any(d == end and t == kt for d, t in zip(dates, tons))
+        assert ok, f"{r['period_label']}: {kt:,} thousand tons not found for {end} in {r['units_accession']}"

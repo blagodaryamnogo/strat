@@ -1,5 +1,7 @@
 # Silk Road Salts | Loyalty Intelligence
 
+> This repository also contains the **Learning-Curve Calculator** (Streamlit app for experience-curve analysis from SEC EDGAR data). See [`learning_curve/README.md`](learning_curve/README.md).
+
 BYU STRAT 560 — review-derived Net Promoter Score for five specialty-salt competitors on Amazon US,
 and a "Where Should Silk Road Salts Compete?" startup analysis.
 

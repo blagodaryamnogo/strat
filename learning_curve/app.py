@@ -171,9 +171,15 @@ if len(cogs.observations) < MIN_OBSERVATIONS:
 
 period_labels = [o.label for o in cogs.observations]
 default_n = 10 if freq == "annual" else 20
+# A requested range (from the "Set analysis period" button) is stored separately and applied by giving the
+# slider a new key; writing a range select_slider's own state from a callback is lost on the next rerun.
+window_key = f"window-{cik}-{freq}-{cogs.concept}-{fill}"
+window_range = st.session_state.get(window_key + "-range")
+if not window_range or any(lbl not in period_labels for lbl in window_range):
+    window_range = (period_labels[max(0, len(period_labels) - default_n)], period_labels[-1])
+window_ver = st.session_state.get(window_key + "-ver", 0)
 start_label, end_label = st.select_slider(
-    "Analysis period", options=period_labels,
-    value=(period_labels[max(0, len(period_labels) - default_n)], period_labels[-1]),
+    "Analysis period", options=period_labels, value=window_range, key=f"{window_key}-{window_ver}",
     help="Defaults to the most recent 10 fiscal years (annual) or 20 quarters (quarterly).")
 i0, i1 = period_labels.index(start_label), period_labels.index(end_label)
 window = cogs.observations[i0:i1 + 1]
@@ -275,6 +281,28 @@ if method in (METHOD_USER_UNITS, METHOD_REVENUE_ASP):
         src = "" if pd.isna(row["Source"]) else str(row["Source"])
         inputs[row["Period end"]] = (PeriodInput(units=float(v), source=src) if method == METHOD_USER_UNITS
                                      else PeriodInput(asp=float(v), source=src))
+
+    # Offer to fit the window to the periods the user actually supplied values for.
+    filled = [i for i, o in enumerate(cogs.observations) if o.end.isoformat() in inputs]
+    if filled and [o.end.isoformat() for o in window] != [cogs.observations[i].end.isoformat()
+                                                          for i in range(filled[0], filled[-1] + 1)]:
+        runs, run = [], [filled[0]]
+        for i in filled[1:]:
+            if i == run[-1] + 1:
+                run.append(i)
+            else:
+                runs.append(run)
+                run = [i]
+        runs.append(run)
+        best = max(runs, key=lambda r: (len(r), r[-1]))
+        span = (period_labels[best[0]], period_labels[best[-1]])
+        missing = [o.label for o in window if o.end.isoformat() not in inputs]
+        if missing:
+            st.info(f"You have values for {span[0]} – {span[1]} ({len(best)} periods), but the analysis "
+                    f"period also includes {', '.join(missing)}. Every period in the window needs a value.")
+            st.button(f"Set analysis period to {span[0]} – {span[1]}",
+                      on_click=lambda: st.session_state.update({window_key + "-range": span,
+                                                                window_key + "-ver": window_ver + 1}))
 
 xbrl_blocked = quantity is not None and not xbrl_ok
 current_sig = signature(cik, freq, cogs.concept, [o.end for o in window], method,

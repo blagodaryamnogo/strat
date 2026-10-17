@@ -71,3 +71,4 @@ def test_app_refuses_without_units(offline_sec):
     assert not at.exception
     assert at.error and "cannot be reported" in at.error[0].value
     assert not at.metric
+

@@ -309,7 +309,9 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
         what = {"user_units": "Unit volumes", "revenue_asp": "Average selling prices",
                 "xbrl_units": "SEC-tagged unit volumes"}.get(unit_method, "Unit volumes")
         errors.append(f"{what} are missing for: {', '.join(missing_units)}. Every period in the window "
-                      f"needs a value because each one adds to cumulative production.")
+                      f"needs a value because each one adds to cumulative production. Either add values for "
+                      f"these periods or move the Analysis period slider so it covers only periods you have "
+                      f"values for.")
     if missing_source:
         errors.append(f"A source is required for every user-supplied value; missing for: "
                       f"{', '.join(missing_source)}.")

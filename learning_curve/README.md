@@ -33,6 +33,14 @@ streamlit run learning_curve/app.py
 You can also copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` (it is git-ignored) instead of
 exporting variables. If `SEC_USER_AGENT` is not set, the page asks the visitor for a name and email.
 
+## Run in the browser with GitHub Codespaces
+
+On the repository page, choose the branch, click **Code → Codespaces → Create codespace on <branch>**. The
+`.devcontainer` config installs the requirements and starts the app; it opens in a new tab (or open the
+**Ports** panel and click the globe icon next to port 8501). The page asks for your name and email for the SEC
+User-Agent unless you add `SEC_USER_AGENT` as a Codespaces secret. XSRF protection is turned off in this
+private development container only, because Codespaces' port forwarding otherwise blocks CSV uploads.
+
 ## Tests
 
 ```bash

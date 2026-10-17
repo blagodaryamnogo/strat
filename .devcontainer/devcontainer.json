@@ -1,0 +1,10 @@
+{
+  "name": "Learning-Curve Calculator",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install -r learning_curve/requirements.txt",
+  "postAttachCommand": "streamlit run learning_curve/app.py --server.headless true --server.enableXsrfProtection false",
+  "forwardPorts": [8501],
+  "portsAttributes": {
+    "8501": { "label": "Learning-Curve Calculator", "onAutoForward": "openBrowser" }
+  }
+}

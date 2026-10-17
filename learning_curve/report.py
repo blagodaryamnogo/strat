@@ -131,8 +131,9 @@ def build_pdf(an: Analysis, app_url: str | None) -> bytes:
         story.append(_p(f"Public Comparable: {escape(an.company)} ({escape(an.ticker)})", SUB))
         story.append(_p("<b>Tool:</b> Learning-Curve Calculator"))
     if app_url:
+        shown = re.sub(r"^https?://", "", app_url).rstrip("/")   # display without the scheme; link keeps it
         story.append(_p(f'<b>Public Tool URL:</b> <link href="{escape(app_url)}" color="{LINK}">'
-                        f'<u>{escape(app_url)}</u></link>'))
+                        f'<u>{escape(shown)}</u></link>'))
     else:
         story.append(_p('<b>Public Tool URL:</b> <font color="#b42318">Not configured — this report is missing '
                         'the public link. Set PUBLIC_APP_URL in the app settings.</font>'))

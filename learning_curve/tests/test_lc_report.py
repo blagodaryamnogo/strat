@@ -26,7 +26,7 @@ def test_pdf_structure_text_chart_and_sources(freq):
     reader, text = pdf_text(data)
     flat = " ".join(text.split())
     assert 2 <= len(reader.pages) <= 6
-    for needle in ["Learning-Curve Calculator", f"Public Tool URL: {URL}", "Analysis Results",
+    for needle in ["Learning-Curve Calculator", "Public Tool URL: " + URL.split("://")[1], "Analysis Results",
                    "Data, Sources, and Methodology", "Interpretation", "Methodology", "Assumptions and limitations",
                    "Period-level calculation", "SEC sources for COGS", "Unit volume sources",
                    fmt_pct(an.regression.learning_rate), fmt_b(an.regression.b), fmt_r2(an.regression.r2),

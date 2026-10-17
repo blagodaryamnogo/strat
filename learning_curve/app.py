@@ -171,7 +171,8 @@ elif not (cogs_candidates := series_for(cik, freq, "cogs", facts)):
                  "(checked: " + ", ".join(c for _, c in fin.COGS_CONCEPTS) + "). Banks, insurers and some "
                  "service companies do not report COGS, and some companies use company-specific tags that "
                  "the SEC Company Facts API does not publish. An experience curve cannot be calculated from "
-                 "its filings.")
+                 "its consolidated XBRL data. If you have segment cost and unit figures from its filings, choose "
+                 "**Segment cost and units from SEC filings** under Cost basis above.")
     st.stop()
 else:
     st.markdown("#### 1. Cost of goods sold from SEC filings")

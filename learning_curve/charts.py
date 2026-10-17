@@ -19,6 +19,10 @@ LINE = "#c0392b"
 
 
 def _tick(x, _pos):
+    """Compact tick labels (e.g. 1.5M, 45K) so log-axis labels never collide."""
+    for threshold, scale, suffix in ((1e9, 1e9, "B"), (1e6, 1e6, "M"), (1e4, 1e3, "K")):
+        if abs(x) >= threshold:
+            return f"{x / scale:,.3g}{suffix}"
     return fmt_num(x, 3)
 
 

@@ -11,6 +11,7 @@ import json
 import os
 import tempfile
 import time
+from datetime import date
 from pathlib import Path
 
 import requests
@@ -134,3 +135,11 @@ def primary_documents(submissions: dict) -> dict[str, str]:
     accns = recent.get("accessionNumber", [])
     docs = recent.get("primaryDocument", [])
     return {a: d for a, d in zip(accns, docs) if d}
+
+
+def latest_periodic_report(submissions: dict):
+    """Period end of the most recent 10-K/10-Q/20-F/40-F in the submissions history, if any."""
+    recent = (submissions or {}).get("filings", {}).get("recent", {})
+    dates = [d for f, d in zip(recent.get("form", []), recent.get("reportDate", []))
+             if d and f.split("/")[0] in ("10-K", "10-Q", "20-F", "40-F")]
+    return date.fromisoformat(max(dates)) if dates else None

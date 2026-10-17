@@ -89,3 +89,22 @@ def test_values_agree_across_chart_table_csv_and_pdf():
     for r in an.rows:
         assert f"{r['unit_cost']:,.2f}" in flat and f"{r['cogs'] / 1e6:,.1f}" in flat
         assert "Synthetic test value" in flat
+
+
+@pytest.mark.parametrize("value,label", [(2_000, "2,000"), (49_847, "49.8K"), (499_647, "500K"),
+                                         (1_500_000, "1.5M"), (7_000_000, "7M"), (2.5, "2.50"),
+                                         (3_000_000_000, "3B")])
+def test_axis_tick_labels_match_values(value, label):
+    from charts import _tick
+    assert _tick(value, None) == label
+
+
+def test_chart_tick_labels_parse_back_to_tick_values():
+    from charts import _tick
+    an = synthetic_analysis("annual")
+    ax = experience_curve_figure(an).axes[0]
+    mult = {"K": 1e3, "M": 1e6, "B": 1e9}
+    for t in ax.get_xticks():
+        text = _tick(t, None)
+        num = float(text[:-1].replace(",", "")) * mult[text[-1]] if text[-1] in mult else float(text.replace(",", ""))
+        assert num == pytest.approx(t, rel=0.01)

@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from datetime import timedelta
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -18,7 +19,7 @@ from analysis import (CAUSALITY_LIMITATION, METHOD_LABELS, METHOD_REVENUE_ASP, M
                       equation_text, fmt_b, fmt_pct, fmt_r2, methodology_text)
 from charts import experience_curve_figure
 from report import build_csv, build_pdf, report_filename
-from sec_client import SECClient, SECError, primary_documents
+from sec_client import SECClient, SECError, latest_periodic_report, primary_documents
 
 st.set_page_config(page_title="Learning-Curve Calculator", page_icon="📉", layout="wide")
 
@@ -40,10 +41,10 @@ def load_company(query: str, user_agent: str):
     info = client.lookup(query)
     facts = client.company_facts(info["cik"])
     try:
-        docs = primary_documents(client.submissions(info["cik"]))
+        subs = client.submissions(info["cik"])
     except SECError:
-        docs = {}
-    return info, facts, docs
+        subs = {}
+    return info, facts, primary_documents(subs), latest_periodic_report(subs)
 
 
 @st.cache_data(show_spinner=False, max_entries=40)
@@ -112,8 +113,9 @@ with st.form("lookup"):
 if fetch:
     try:
         with st.spinner("Retrieving SEC EDGAR data…"):
-            info, facts, docs = load_company(ticker_in, user_agent)
-        st.session_state["loaded"] = {"info": info, "facts": facts, "docs": docs, "freq": freq_in.lower()}
+            info, facts, docs, latest_report = load_company(ticker_in, user_agent)
+        st.session_state["loaded"] = {"info": info, "facts": facts, "docs": docs, "latest": latest_report,
+                                      "freq": freq_in.lower()}
         st.session_state.pop("calc_sig", None)
     except SECError as e:
         st.error(str(e))
@@ -126,6 +128,7 @@ if not loaded:
     st.stop()
 
 info, facts, docs, freq = loaded["info"], loaded["facts"], loaded["docs"], loaded["freq"]
+latest_report = loaded.get("latest")
 company = facts.get("entityName") or info["title"] or info["ticker"]
 cik = info["cik"]
 st.subheader(f"{company} ({info['ticker']})")
@@ -135,17 +138,32 @@ st.caption(f"SEC CIK {cik} · {freq} data")
 st.markdown("#### 1. Cost of goods sold from SEC filings")
 cogs_candidates = series_for(cik, freq, "cogs", facts)
 if not cogs_candidates:
-    st.error("This company does not report a cost-of-goods-sold concept in SEC XBRL data "
-             "(checked: " + ", ".join(c for _, c in fin.COGS_CONCEPTS) + "). An experience curve cannot "
-             "be calculated from its filings.")
+    if freq == "quarterly" and series_for(cik, "annual", "cogs", facts):
+        st.error("This company reports COGS only annually in SEC XBRL data (foreign filers using 20-F or "
+                 "40-F do not file quarterly reports). Choose Annual and retrieve again.")
+    else:
+        st.error("This company does not report a cost-of-goods-sold concept in SEC XBRL data "
+                 "(checked: " + ", ".join(c for _, c in fin.COGS_CONCEPTS) + "). Banks, insurers and some "
+                 "service companies do not report COGS, and some companies use company-specific tags that "
+                 "the SEC Company Facts API does not publish. An experience curve cannot be calculated from "
+                 "its filings.")
     st.stop()
 labels = [f"{s.concept} — {len(s.observations)} periods, {s.observations[0].end} to {s.observations[-1].end}"
           for s in cogs_candidates]
 pick = st.selectbox("COGS concept (XBRL tag)", range(len(labels)), format_func=lambda i: labels[i],
                     help="Selected automatically: the candidate with the most periods, ties broken in the order "
                          "CostOfGoodsAndServicesSold, CostOfRevenue, CostOfGoodsSold. Concepts are never combined.")
-cogs = cogs_candidates[pick]
-concept_notes = fin.concept_disagreements(cogs, [s for i, s in enumerate(cogs_candidates) if i != pick])
+others = [s for i, s in enumerate(cogs_candidates) if i != pick]
+fill = st.checkbox("Fill missing periods from an alternative COGS tag when it reports identical values",
+                   value=True, help="Companies sometimes switch XBRL tags (e.g. CostOfGoodsSold → "
+                   "CostOfGoodsAndServicesSold). A missing period is filled only from a tag whose values match the "
+                   "selected tag (within 0.5%) in at least two overlapping periods. Every row shows its own tag.")
+cogs = fin.fill_from_alternatives(cogs_candidates[pick], others) if fill else cogs_candidates[pick]
+if latest_report and cogs.observations[-1].end < latest_report - timedelta(days=200):
+    st.warning(f"The latest {cogs.concept} value is for the period ending {cogs.observations[-1].end}, but the "
+               f"company has filed reports through {latest_report}. Its recent filings probably use a "
+               f"company-specific COGS tag, which the SEC Company Facts API does not publish, so recent "
+               f"periods cannot be retrieved here.")
 if len(cogs.observations) < MIN_OBSERVATIONS:
     st.error(f"Only {len(cogs.observations)} {freq} COGS observations are available; at least "
              f"{MIN_OBSERVATIONS} are required.")
@@ -159,6 +177,7 @@ start_label, end_label = st.select_slider(
     help="Defaults to the most recent 10 fiscal years (annual) or 20 quarters (quarterly).")
 i0, i1 = period_labels.index(start_label), period_labels.index(end_label)
 window = cogs.observations[i0:i1 + 1]
+concept_notes = fin.concept_disagreements(cogs_candidates[pick], others, window[0].start, window[-1].end)
 for g in fin.contiguity_gaps(window):
     st.warning(g)
 with st.expander(f"Retrieved COGS with SEC provenance ({len(window)} periods in window)"):
@@ -167,7 +186,7 @@ with st.expander(f"Retrieved COGS with SEC provenance ({len(window)} periods in 
         "How obtained": "Reported" if o.method == "reported" else "Derived: " + o.note,
         "Form": o.primary.form, "Filed": o.primary.filed, "Accession": o.primary.accession}
         for o in window]), hide_index=True, width="stretch")
-    for note in cogs.issues + concept_notes:
+    for note in cogs.notes(window[0].start, window[-1].end) + concept_notes:
         st.caption("• " + note)
 
 # ---- Step 2: unit volumes --------------------------------------------------
@@ -247,7 +266,7 @@ if method in (METHOD_USER_UNITS, METHOD_REVENUE_ASP):
         table, hide_index=True, width="stretch",
         key=f"editor-{cik}-{freq}-{cogs.concept}-{method}-{upload_key}",
         disabled=[c for c in table.columns if c not in (value_head, "Source")],
-        column_config={value_head: st.column_config.NumberColumn(value_head, min_value=0.0, format="%.2f"),
+        column_config={value_head: st.column_config.NumberColumn(value_head, min_value=0.0, format="%,g"),
                        "Source": st.column_config.TextColumn("Source", width="large")})
     for _, row in edited.iterrows():
         v = row[value_head]
@@ -321,10 +340,11 @@ table = pd.DataFrame([{
     "COGS tag": r["cogs_concept"], "COGS obtained": "Reported" if r["cogs_method"] == "reported"
     else "Derived: " + r["cogs_note"], "Form": r["cogs_form"], "Filed": r["cogs_filed"],
     "Accession": r["cogs_accession"], "SEC filing": r["cogs_url"]} for r in an.rows])
+unit_fmt = "%,.0f" if all(float(r["units"]).is_integer() for r in an.rows if r["units"]) else "%,.2f"
 st.dataframe(table, hide_index=True, width="stretch", column_config={
     f"COGS ({cur})": st.column_config.NumberColumn(format="%,.0f"),
-    "Units": st.column_config.NumberColumn(format="%,.2f"),
-    "Cumulative units": st.column_config.NumberColumn(format="%,.2f"),
+    "Units": st.column_config.NumberColumn(format=unit_fmt),
+    "Cumulative units": st.column_config.NumberColumn(format=unit_fmt),
     f"Unit COGS ({cur})": st.column_config.NumberColumn(format="%,.2f"),
     "SEC filing": st.column_config.LinkColumn("SEC filing", display_text="open filing")})
 

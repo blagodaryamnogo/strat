@@ -10,7 +10,9 @@ Rules (see METHODOLOGY.md):
   difference between consecutive year-to-date values that share a start date
   (e.g. Q4 = fiscal-year total - nine-month YTD). Year-to-date values themselves
   are never used as quarters, so nothing is double-counted.
-* One XBRL concept per series. Concepts are never spliced together.
+* One XBRL concept per series. The only exception: a period missing under the selected
+  concept may be taken from an alternative concept that reports identical values (within
+  0.5%) in at least two overlapping periods. Each such period keeps its own tag.
 """
 from __future__ import annotations
 
@@ -40,16 +42,22 @@ REVENUE_CONCEPTS = [
     ("ifrs-full", "Revenue"),
 ]
 
-QUARTER_DAYS = (75, 105)
-HALF_DAYS = (165, 200)
-NINE_DAYS = (255, 290)
+QUARTER_DAYS = (75, 120)          # 12- to 17-week quarters (e.g. 16-week fourth quarters)
+HALF_DAYS = (160, 200)
+NINE_DAYS = (245, 290)
 ANNUAL_DAYS = (350, 380)
 CONTIGUITY_TOLERANCE_DAYS = 7
 
 _CURRENCY = re.compile(r"^[A-Z]{3}$")
-# Count units that cannot be production or sales volumes.
+# Units and concept names that cannot be production or sales volumes.
 NON_VOLUME_UNITS = {"shares", "pure", "segment", "segments", "employee", "employees", "position",
-                    "positions", "subsidiary", "director", "plaintiff", "lawsuit", "claim", "patent"}
+                    "positions", "subsidiary", "director", "plaintiff", "lawsuit", "claim", "patent",
+                    "y", "yr", "year", "years", "month", "months", "d", "day", "days", "week", "weeks",
+                    "h", "hour", "hours", "reportablesegment", "operatingsegment"}
+NON_VOLUME_CONCEPT = re.compile(r"Segment|ShareBased|Term|UsefulLife|Contracts|Employee|Plaintiff|Claims|"
+                                r"Patent|Lawsuit|Percentage|Rate", re.I)
+SAME_PERIOD_DAYS = 3
+VERIFY_TOLERANCE = 0.005
 
 
 def _d(s: str) -> date:
@@ -118,7 +126,13 @@ class Series:
     unit: str
     frequency: str                  # "annual" or "quarterly"
     observations: list[Observation]
-    issues: list[str]
+    issues: list[tuple[date | None, str]]      # (period end it concerns, or None if general; text)
+    filled_from: list[str] = field(default_factory=list)
+
+    def notes(self, start: date | None = None, end: date | None = None) -> list[str]:
+        """Issue texts that concern the given date range (general issues always included)."""
+        return [t for d, t in self.issues
+                if d is None or start is None or (start <= d <= end + timedelta(days=5))]
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +175,8 @@ def _latest_by_period(facts: list[SourceFact]) -> dict[tuple[date, date], Observ
         restated = []
         seen = set()
         for f in fs[:-1]:
-            if abs(f.value - latest.value) > max(1.0, 1e-6 * abs(latest.value)) and f.value not in seen:
+            # Differences under 0.1% are rounding (e.g. thousands vs millions), not revisions.
+            if abs(f.value - latest.value) > max(1.0, 0.001 * abs(latest.value)) and f.value not in seen:
                 restated.append((f.value, f.accession))
                 seen.add(f.value)
         out[key] = Observation(start=key[0], end=key[1], value=latest.value, method="reported",
@@ -169,19 +184,36 @@ def _latest_by_period(facts: list[SourceFact]) -> dict[tuple[date, date], Observ
     return out
 
 
-def _chain(obs: list[Observation], issues: list[str], kind: str) -> list[Observation]:
-    """Keep a non-overlapping sequence, preferring the most recent period on conflict."""
+def _same_period(a: Observation, b: Observation) -> bool:
+    return abs((a.start - b.start).days) <= SAME_PERIOD_DAYS and abs((a.end - b.end).days) <= SAME_PERIOD_DAYS
+
+
+def _chain(obs: list[Observation], issues: list, kind: str) -> list[Observation]:
+    """Keep a non-overlapping sequence, preferring the most recent period on conflict.
+
+    The same period tagged with dates a day or two apart in different filings is treated as one
+    period, and the most recently filed value is kept."""
     kept: list[Observation] = []
     for o in sorted(obs, key=lambda o: (o.end, o.start), reverse=True):
         if kept and o.end > kept[-1].start - timedelta(days=1) + timedelta(days=CONTIGUITY_TOLERANCE_DAYS):
-            issues.append(f"Overlapping {kind} period {o.start}–{o.end} was skipped in favor of "
-                          f"{kept[-1].start}–{kept[-1].end}.")
+            k = kept[-1]
+            if _same_period(o, k):
+                newer, older = (o, k) if o.primary.filed > k.primary.filed else (k, o)
+                if abs(newer.value - older.value) > max(1.0, VERIFY_TOLERANCE * abs(newer.value)):
+                    issues.append((newer.end, f"Period ending {newer.end} is tagged with slightly different "
+                                              f"dates in different filings ({older.value:,.0f} in "
+                                              f"{older.primary.accession}); the later filing's "
+                                              f"{newer.value:,.0f} is used."))
+                kept[-1] = newer
+                continue
+            issues.append((o.end, f"Overlapping {kind} period {o.start}–{o.end} was skipped in favor of "
+                                  f"{k.start}–{k.end}."))
             continue
         kept.append(o)
     return sorted(kept, key=lambda o: o.end)
 
 
-def annual_series(obs_by_period: dict, issues: list[str]) -> list[Observation]:
+def annual_series(obs_by_period: dict, issues: list) -> list[Observation]:
     annual = [o for o in obs_by_period.values()
               if _in(o.days, ANNUAL_DAYS) and o.primary.form in ANNUAL_FORMS]
     out = _chain(annual, issues, "annual")
@@ -190,7 +222,7 @@ def annual_series(obs_by_period: dict, issues: list[str]) -> list[Observation]:
     return out
 
 
-def quarterly_series(obs_by_period: dict, issues: list[str]) -> list[Observation]:
+def quarterly_series(obs_by_period: dict, issues: list) -> list[Observation]:
     quarters: dict[date, Observation] = {}
     for o in obs_by_period.values():
         if _in(o.days, QUARTER_DAYS):
@@ -214,10 +246,10 @@ def quarterly_series(obs_by_period: dict, issues: list[str]) -> list[Observation
             if existing is not None and abs((existing.start - q_start).days) <= 5:
                 if existing.method == "reported" and abs(existing.value - derived_value) > max(
                         1.0, 0.005 * abs(existing.value)):
-                    issues.append(
+                    issues.append((cur.end,
                         f"Reported quarter ending {cur.end} ({existing.value:,.0f}) differs from the "
                         f"value implied by year-to-date filings ({derived_value:,.0f}); the reported "
-                        f"three-month value was used.")
+                        f"three-month value was used."))
                 continue
             quarters[cur.end] = Observation(
                 start=q_start, end=cur.end, value=derived_value, method="derived",
@@ -226,16 +258,21 @@ def quarterly_series(obs_by_period: dict, issues: list[str]) -> list[Observation
                       f"{prev.days}-day YTD ({prev.primary.form} {prev.primary.accession})"))
     out = _chain(list(quarters.values()), issues, "quarterly")
 
-    # Label quarters by the fiscal year (annual period) that contains them.
+    # Label quarters by the fiscal year that contains them. The current, unfinished fiscal year
+    # is assumed to run 52 weeks from the end of the last reported fiscal year.
     years = [o for o in obs_by_period.values() if _in(o.days, ANNUAL_DAYS)]
+    spans = [(y.start, y.end) for y in years]
+    if years:
+        last = max(y.end for y in years)
+        spans.append((last + timedelta(days=1), last + timedelta(days=364)))
     for q in out:
-        fy = next((y for y in years if y.start - timedelta(days=5) <= q.start and q.end <= y.end
-                   + timedelta(days=5)), None)
+        fy = next(((s, e) for s, e in spans if s - timedelta(days=5) <= q.start and q.end <= e
+                   + timedelta(days=7)), None)
         if fy is None:
             q.label = f"Q ending {q.end}"
         else:
-            k = round(((q.end - fy.start).days + 1) / 91.3)
-            q.label = f"FY{fiscal_year(fy.end)}-Q{min(max(k, 1), 4)}"
+            k = round(((q.end - fy[0]).days + 1) / 91.3)
+            q.label = f"FY{fiscal_year(fy[1])}-Q{min(max(k, 1), 4)}"
     _check_quarter_sums(out, years, issues)
     return out
 
@@ -249,25 +286,26 @@ def _unique_labels(obs: list[Observation]) -> None:
             o.label = f"{o.label} ({o.end})"
 
 
-def _check_quarter_sums(quarters: list[Observation], years: list[Observation], issues: list[str]):
+def _check_quarter_sums(quarters: list[Observation], years: list[Observation], issues: list):
     """Four quarters inside a fiscal year must add up to the reported annual total."""
     for y in years:
         qs = [q for q in quarters if y.start - timedelta(days=5) <= q.start and q.end <= y.end + timedelta(days=5)]
         if len(qs) == 4:
             total = sum(q.value for q in qs)
             if abs(total - y.value) > max(1.0, 0.005 * abs(y.value)):
-                issues.append(f"Quarters in fiscal year ending {y.end} sum to {total:,.0f}, but the "
-                              f"annual total is {y.value:,.0f}.")
+                issues.append((y.end, f"Quarters in fiscal year ending {y.end} sum to {total:,.0f}, but "
+                                      f"the annual total is {y.value:,.0f}."))
 
 
 def extract_series(facts: dict, taxonomy: str, concept: str, frequency: str,
                    monetary: bool = True, unit: str | None = None) -> Series:
     units = concept_units(facts, taxonomy, concept)
-    issues: list[str] = []
+    issues: list[tuple[date | None, str]] = []
     if unit is None:
         unit, others = _pick_unit(units, monetary)
         if others:
-            issues.append(f"{concept} is also reported in {', '.join(others)}; only {unit} values are used.")
+            issues.append((None, f"{concept} is also reported in {', '.join(others)}; only {unit} values "
+                                 f"are used."))
     raw = units.get(unit, []) if unit else []
     forms = ANNUAL_FORMS if frequency == "annual" else QUARTERLY_FORMS
     by_period = _latest_by_period(_source_facts(raw, concept, unit or "", forms))
@@ -276,8 +314,8 @@ def extract_series(facts: dict, taxonomy: str, concept: str, frequency: str,
     for o in obs:
         if o.restated_from:
             prior = "; ".join(f"{v:,.0f} in {a}" for v, a in o.restated_from)
-            issues.append(f"{o.label} ({o.end}): value was revised across filings; latest filed value "
-                          f"{o.value:,.0f} used (earlier: {prior}).")
+            issues.append((o.end, f"{o.label} ({o.end}): value was revised across filings; latest filed "
+                                  f"value {o.value:,.0f} used (earlier: {prior})."))
     return Series(concept=concept, taxonomy=taxonomy, label=concept_label(facts, taxonomy, concept),
                   unit=unit or "", frequency=frequency, observations=obs, issues=issues)
 
@@ -285,7 +323,9 @@ def extract_series(facts: dict, taxonomy: str, concept: str, frequency: str,
 def candidate_series(facts: dict, concepts: list[tuple[str, str]], frequency: str) -> list[Series]:
     """All listed concepts that yield at least one observation, best first.
 
-    Selection rule: most observations wins; ties are broken by the order of `concepts`.
+    Selection rule: concepts still reported in the most recent filings (latest period within
+    400 days of the latest period of any candidate) come first; among those, the one with the
+    most observations; ties are broken by the order of `concepts`.
     """
     found = []
     for rank, (tax, concept) in enumerate(concepts):
@@ -294,8 +334,41 @@ def candidate_series(facts: dict, concepts: list[tuple[str, str]], frequency: st
         s = extract_series(facts, tax, concept, frequency)
         if s.observations:
             found.append((rank, s))
-    found.sort(key=lambda t: (-len(t[1].observations), t[0]))
+    if not found:
+        return []
+    newest = max(s.observations[-1].end for _, s in found)
+    found.sort(key=lambda t: (t[1].observations[-1].end < newest - timedelta(days=400),
+                              -len(t[1].observations), t[0]))
     return [s for _, s in found]
+
+
+def fill_from_alternatives(primary: Series, others: list[Series]) -> Series:
+    """Fill periods missing under `primary` from an alternative concept, but only when that
+    concept reports the same values (within 0.5%) in at least two overlapping periods."""
+    obs = list(primary.observations)
+    issues = list(primary.issues)
+    used = []
+    for alt in others:
+        if alt.unit != primary.unit:
+            continue
+        overlap = [(o, p) for o in alt.observations for p in obs if _same_period(o, p)]
+        if len(overlap) < 2 or any(abs(o.value - p.value) > max(1.0, VERIFY_TOLERANCE * abs(p.value))
+                                   for o, p in overlap):
+            continue
+        added = [o for o in alt.observations
+                 if not any(o.start <= p.end and p.start <= o.end for p in obs)]
+        if not added:
+            continue
+        obs.extend(added)
+        used.append(alt.concept)
+        issues.append((None, f"{len(added)} period(s) not tagged {primary.concept} were taken from "
+                             f"{alt.concept} ({', '.join(o.label for o in sorted(added, key=lambda o: o.end))}), "
+                             f"which reports identical values in {len(overlap)} overlapping periods."))
+        issues.extend(i for i in alt.issues if i[0] is not None and any(i[0] == o.end for o in added))
+    obs.sort(key=lambda o: o.end)
+    _unique_labels(obs)
+    return Series(concept=primary.concept, taxonomy=primary.taxonomy, label=primary.label, unit=primary.unit,
+                  frequency=primary.frequency, observations=obs, issues=issues, filled_from=used)
 
 
 def quantity_candidates(facts: dict, frequency: str) -> list[Series]:
@@ -304,7 +377,8 @@ def quantity_candidates(facts: dict, frequency: str) -> list[Series]:
     for tax, concepts in facts.get("facts", {}).items():
         for concept, body in concepts.items():
             for unit in body.get("units", {}):
-                if _CURRENCY.match(unit) or "/" in unit or unit.lower() in NON_VOLUME_UNITS:
+                if (_CURRENCY.match(unit) or "/" in unit or unit.lower() in NON_VOLUME_UNITS
+                        or NON_VOLUME_CONCEPT.search(concept)):
                     continue
                 s = extract_series(facts, tax, concept, frequency, unit=unit)
                 if len(s.observations) >= 3 and all(o.value > 0 for o in s.observations):
@@ -322,10 +396,13 @@ def contiguity_gaps(obs: list[Observation]) -> list[str]:
     return gaps
 
 
-def concept_disagreements(primary: Series, others: list[Series]) -> list[str]:
-    """Report where alternative COGS concepts give different values for the same period."""
+def concept_disagreements(primary: Series, others: list[Series], start: date | None = None,
+                          end: date | None = None) -> list[str]:
+    """Report where alternative COGS concepts give different values for the same period
+    (limited to periods ending between `start` and `end` when given)."""
     notes = []
-    by_end = {o.end: o.value for o in primary.observations}
+    by_end = {o.end: o.value for o in primary.observations
+              if start is None or start <= o.end <= end}
     for s in others:
         diffs = [abs(o.value - by_end[o.end]) / abs(by_end[o.end])
                  for o in s.observations if o.end in by_end and by_end[o.end]]

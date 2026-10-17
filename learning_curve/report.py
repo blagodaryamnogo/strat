@@ -43,6 +43,7 @@ H2 = ParagraphStyle("h2", parent=BASE, fontName="DejaVu-Bold", fontSize=12.5, le
                     spaceAfter=5)
 H3 = ParagraphStyle("h3", parent=BASE, fontName="DejaVu-Bold", fontSize=10, leading=13, spaceBefore=8,
                     spaceAfter=3)
+H3K = ParagraphStyle("h3k", parent=H3, keepWithNext=1)
 BULLET = ParagraphStyle("bullet", parent=BASE, leftIndent=10, bulletIndent=0, spaceAfter=2)
 
 _URL = re.compile(r"(https?://[^\s<>&]+)")
@@ -143,13 +144,14 @@ def build_pdf(an: Analysis, app_url: str | None) -> bytes:
     story.append(Spacer(1, 8))
     png = figure_png(experience_curve_figure(an), dpi=200)
     img = Image(io.BytesIO(png))
-    scale = width / img.imageWidth
-    img.drawWidth, img.drawHeight = width, img.imageHeight * scale
+    chart_w = 0.88 * width
+    img.drawWidth, img.drawHeight = chart_w, img.imageHeight * chart_w / img.imageWidth
     story.append(img)
     story.append(_p("Interpretation", H3))
     story.append(_txt(an.interpretation))
     if an.warnings:
-        story.append(KeepTogether([_p("Qualifications", H3)] + _bullets(an.warnings)))
+        story.append(_p("Qualifications", H3K))
+        story.extend(_bullets(an.warnings))
 
     # Section 3: data, sources, methodology
     story.append(PageBreak())
@@ -174,7 +176,7 @@ def build_pdf(an: Analysis, app_url: str | None) -> bytes:
         src.append([_p(r["period"], CELL), _p(r["cogs_concept"], CELL), _p(f"{r['cogs']:,.0f}", CELL),
                     _p(r["cogs_form"], CELL), _p(r["cogs_filed"], CELL),
                     _link(r["cogs_url"], r["cogs_accession"]), _txt(how, CELL)])
-    story.append(_table(src, [w * inch for w in (0.68, 1.55, 0.8, 0.42, 0.65, 1.4, 1.5)]))
+    story.append(_table(src, [w * inch for w in (0.68, 1.45, 0.95, 0.42, 0.65, 1.4, 1.45)]))
 
     story.append(_p("Unit volume sources", H3))
     story.append(_txt(f"Method: {METHOD_LABELS[an.unit_method]}. Unit definition: {an.unit_definition}. "

@@ -17,11 +17,20 @@ Candidates: `CostOfGoodsAndServicesSold`, `CostOfRevenue`, `CostOfGoodsSold` (pr
 `CostOfGoodsAndServiceExcludingDepreciationDepletionAndAmortization`,
 `CostOfGoodsSoldExcludingDepreciationDepletionAndAmortization` and IFRS `CostOfSales`.
 
-* The concept with the most usable periods at the chosen frequency is selected, with ties broken in the order
-  above. The user can switch concepts, and the choice is shown in the app and the report.
-* **Concepts are never combined.** If a company switched tags (for example from `CostOfGoodsSold` to
-  `CostOfGoodsAndServicesSold`), only the periods filed under the selected tag are used. If an alternative concept
-  is reported for the same periods with values that differ by more than 0.5%, the difference is disclosed.
+* Concepts still used in the company's latest filings come first: a concept qualifies if its latest period is
+  within 400 days of the latest period of any candidate. Among those, the concept with the most usable periods
+  wins, with ties broken in the order above. Without this rule, a deprecated tag with a longer history (for
+  example Coca-Cola's `CostOfGoodsSold`, which ends in 2017) would be chosen over the current one. The user can
+  switch concepts, and the choice is shown in the app and the report.
+* **Verified fill, never a blind splice.** Companies sometimes switch tags; for example, NVIDIA tagged fiscal 2019
+  cost of revenue only as `CostOfGoodsAndServicesSold` and every other year as `CostOfRevenue`. A period missing
+  under the selected concept is taken from an alternative concept only if that concept reports **identical values
+  (within 0.5%) in at least two overlapping periods**. Each filled row keeps its own tag, and a data note lists
+  the filled periods. The user can turn this off. Alternative concepts that differ by more than 0.5% are never
+  used, and the difference is disclosed for the periods in the window.
+* If the selected concept stops well before the company's latest 10-K/10-Q (for example, GM and Deere after
+  their last standard-tagged year), the app warns that recent filings probably use a company-specific tag, which
+  the Company Facts API does not publish.
 * Only facts without XBRL dimensions are used (the Company Facts API publishes consolidated, entity-wide facts),
   so COGS is always company-wide.
 * If the concept appears in more than one currency, only the most frequent currency is used and the others are
@@ -32,10 +41,16 @@ Candidates: `CostOfGoodsAndServicesSold`, `CostOfRevenue`, `CostOfGoodsSold` (pr
 * A period is identified by its exact XBRL `start` and `end` dates. The filing's `fy`/`fp` labels are not used to
   identify periods, because comparative periods inside a filing carry the filing's own labels.
 * **Duplicates and restatements:** when the same start/end pair appears in several filings (comparatives,
-  amendments), the most recently filed value is used. Earlier values that differ are listed as revisions.
+  amendments), the most recently filed value is used. Earlier values that differ by more than 0.1% are listed
+  as revisions; smaller differences are rounding (for example $9,536,264 thousand vs $9,536 million).
+* **Same period, shifted dates:** filings occasionally tag the same fiscal year with start or end dates a day or
+  two apart. Periods whose start and end both match within 3 days are treated as one period, and the latest
+  filed value is used.
 * **Annual:** durations of 350–380 days (52/53-week years included) from 10-K, 10-KT, 20-F or 40-F filings and
   their amendments.
-* **Quarterly:** durations of 75–105 days.
+* **Quarterly:** durations of 75–120 days. This includes 16- and 17-week fourth quarters, such as Costco's
+  12/12/12/16-week fiscal year, whose 53-week years have a 119-day Q4. Quarters are not normalized to equal
+  length; unit cost is COGS ÷ units for the same period, so unequal lengths do not bias it.
   * A reported three-month value is used when one exists.
   * Otherwise the quarter is the difference between two consecutive cumulative values with the same fiscal-year
     start date: Q2 = 6M − 3M, Q3 = 9M − 6M, Q4 = FY − 9M. Both source filings are recorded.
@@ -46,7 +61,10 @@ Candidates: `CostOfGoodsAndServicesSold`, `CostOfRevenue`, `CostOfGoodsSold` (pr
   and the skipped period is disclosed.
 * **Labels:** `FY<year>` uses the calendar year in which the fiscal year ends. A 52/53-week year ending in the
   first seven days of January belongs to the prior year. Quarter labels (`FY2024-Q3`) are positions within the
-  containing fiscal year. The dates themselves are authoritative.
+  containing fiscal year; the current, unfinished fiscal year is assumed to run 52 weeks after the last reported
+  one. The dates themselves are authoritative.
+* **Data notes** (revisions, reported/derived disagreements, quarter-sum mismatches) appear only for periods
+  inside the selected window.
 * **Gaps:** a hole of more than 7 days between consecutive periods inside the chosen window blocks the
   calculation, because cumulative units would be understated. Missing periods are never interpolated.
 

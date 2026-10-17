@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 import numpy as np
 from scipy import stats
 
+import financials as fin
 from financials import Observation, Series, contiguity_gaps
 from sec_client import filing_document_url
 
@@ -153,6 +154,7 @@ class Analysis:
     interpretation: str = ""
     revenue_concept: str = ""
     quantity_concept: str = ""
+    cogs_filled_from: list[str] = field(default_factory=list)
     generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
 
     @property
@@ -210,11 +212,12 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
                   cogs_concept=cogs.concept, cogs_label=cogs.label, currency=cogs.unit or "USD",
                   unit_method=unit_method, unit_definition=(unit_definition or "").strip(),
                   scope_confirmed=scope_confirmed, rows=[],
-                  revenue_concept=revenue.concept if revenue else "",
+                  revenue_concept=revenue.concept if revenue else "", cogs_filled_from=list(cogs.filled_from),
                   quantity_concept=quantity.concept if quantity else "")
     errors, warnings = an.errors, an.warnings
     an.data_notes.extend(extra_notes or [])
-    an.data_notes.extend(cogs.issues)
+    if window:
+        an.data_notes.extend(cogs.notes(window[0].start, window[-1].end))
 
     if unit_method not in METHOD_LABELS:
         errors.append("Choose how unit volumes are measured.")
@@ -226,7 +229,7 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
         errors.append("The selected data contain duplicated reporting periods.")
     errors.extend(f"Missing period: {g} Cumulative units would be understated. Choose a window that "
                   f"starts after the gap." for g in contiguity_gaps(window))
-    rng = (350, 380) if frequency == "annual" else (75, 105)
+    rng = fin.ANNUAL_DAYS if frequency == "annual" else fin.QUARTER_DAYS
     for o in window:
         if not rng[0] <= o.days <= rng[1]:
             errors.append(f"{o.label} covers {o.days} days, which is inconsistent with {frequency} data.")
@@ -416,8 +419,12 @@ def methodology_text(an: Analysis) -> list[str]:
         "When a period is reported in several filings, the most recently filed value is used so that "
         "restatements are reflected; earlier differing values are listed under data notes.",
         "Concept selection rule: among the candidate COGS concepts (CostOfGoodsAndServicesSold, CostOfRevenue, "
-        "CostOfGoodsSold, the excluding-D&A variants and IFRS CostOfSales), the one with the most "
-        "observations is chosen, ties broken in that order. Different concepts are never combined.",
+        "CostOfGoodsSold, the excluding-D&A variants and IFRS CostOfSales), concepts still used in the latest "
+        "filings come first, then the one with the most observations, ties broken in that order. A period "
+        "missing under the selected concept is taken from an alternative concept only if that concept reports "
+        "identical values (within 0.5%) in at least two overlapping periods; each row shows its own tag."
+        + (f" Periods filled this way here: from {', '.join(an.cogs_filled_from)}." if an.cogs_filled_from
+           else " No periods were filled from alternative concepts in this analysis."),
         f"Unit volumes: {METHOD_LABELS.get(an.unit_method, '')}. Unit definition: {an.unit_definition or '—'}.",
         "Cumulative units N(t) = sum of units from the first period in the window through period t. "
         "Unit cost C(t) = period COGS ÷ period units. The model C = A·N^(−b) is fitted by ordinary least "

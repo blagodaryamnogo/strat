@@ -49,10 +49,29 @@ SEC_USER_AGENT="Your Name you@byu.edu" python -m pytest learning_curve/tests/tes
 | `test_lc_analysis.py` | Missing, zero or unsourced units, too few observations, period gaps and negative COGS give clear errors or disclosed exclusions. Also tests the revenue ÷ price method, the constant-price warning, scope-mismatch flags and the interpretation wording. |
 | `test_lc_report.py` | PDF sections, text, clickable URL and filing links, the embedded chart and the file name. Chart, CSV and PDF values must match the analysis. |
 | `test_lc_app.py` | Drives the real Streamlit page offline (synthetic SEC responses served from the disk cache). The displayed metrics must equal the analysis values, and the page must refuse to report a learning rate without units. |
-| `test_lc_live.py` | Apple's annual COGS traces to the raw SEC facts, FY2023 equals $214,137M, and the four FY2023 quarters sum to the annual total. Also checks a Tesla quarterly series. Skipped when sec.gov is unreachable. |
+| `test_lc_live.py` | Real SEC data, skipped when sec.gov is unreachable. Apple's annual COGS traces to the raw SEC facts, FY2023 equals $214,137M, and the four FY2023 quarters sum to the annual total. NVIDIA's FY2019 tag switch is filled only from a verified-identical tag. Costco's 16- and 17-week Q4s are derived correctly. Tesla FY2020–FY2024 runs end to end with deliveries quoted from its 10-Ks. |
 
 The synthetic fixture (`tests/synthetic.py`) is labeled "SYNTHETIC TEST CO (not a real company)" and exists only
 in tests.
+
+## Verified real-company checks
+
+Checked with live SEC data on 2026-10-17:
+
+* **14 companies** (AAPL, TSLA, F, GM, KO, WMT, NVDA, INTC, CAT, HD, COST, TM, BA, DE) retrieve without errors.
+  Every company except Toyota has contiguous default windows at both frequencies (Toyota files 20-F, so it has
+  no quarterly COGS and the app says so). GM, Deere and Toyota stop tagging a standard COGS concept after
+  2021, 2017 and 2018 respectively; the app warns that their recent periods are unavailable.
+* **Figures appear in the linked filings.** The app's filing links for Tesla FY2024, Coca-Cola FY2024, NVIDIA
+  FY2019, and the two source filings behind Apple's and Costco's derived FY2025 Q4 all return HTTP 200, and each
+  linked document contains the cited figure.
+* **Tesla example** (`examples/tsla_deliveries_2020_2024.csv`): deliveries are quoted from Tesla's 10-K MD&A
+  text, with accession numbers and URLs. The FY2019 and FY2025 10-Ks do not state annual deliveries in that
+  form, so the verified window is FY2020–FY2024, exactly 5 observations. Result: learning rate 2.5%,
+  b = 0.0371, R² = 0.414 (weak). An independent numpy calculation matches. Tesla's consolidated
+  `CostOfRevenue` includes energy, services and regulatory-credit activity, so vehicles alone do not match its
+  scope. The scope box is therefore left unticked, and the result is flagged as not a company-wide experience
+  curve.
 
 ## Deploy publicly on Streamlit Community Cloud
 
@@ -98,4 +117,5 @@ period_end,units,source
 <period end date>,<units for that period>,"<document, page and URL>"
 ```
 
-Use `asp` instead of `units` for the revenue ÷ price method.
+Use `asp` instead of `units` for the revenue ÷ price method. `examples/tsla_deliveries_2020_2024.csv` is a
+complete example.

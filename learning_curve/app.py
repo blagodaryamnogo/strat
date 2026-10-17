@@ -93,7 +93,9 @@ st.title("Learning-Curve Calculator")
 st.markdown("Measure whether a company's costs decline with cumulative production.")
 
 user_agent = setting("SEC_USER_AGENT")
-app_url = setting("PUBLIC_APP_URL")
+# The deployed public address of this tool; PUBLIC_APP_URL (env or Streamlit secrets) overrides it.
+DEFAULT_PUBLIC_APP_URL = "https://srslearningcurve.streamlit.app"
+app_url = setting("PUBLIC_APP_URL") or DEFAULT_PUBLIC_APP_URL
 if not user_agent:
     with st.expander("SEC contact required", expanded=True):
         st.write("The SEC asks every API user to identify themselves. Enter your name and email; it is sent "

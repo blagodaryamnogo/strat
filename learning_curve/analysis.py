@@ -9,7 +9,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import numpy as np
 from scipy import stats
@@ -24,7 +24,9 @@ RECOMMENDED_OBSERVATIONS = 8
 METHOD_USER_UNITS = "user_units"
 METHOD_REVENUE_ASP = "revenue_asp"
 METHOD_XBRL_UNITS = "xbrl_units"
+METHOD_SEGMENT_UNITS = "segment_units"
 METHOD_LABELS = {
+    METHOD_SEGMENT_UNITS: "Direct segment unit volumes reported in SEC filings (each figure cited)",
     METHOD_XBRL_UNITS: "Direct unit volumes disclosed in SEC XBRL data",
     METHOD_USER_UNITS: "Direct unit volumes entered or uploaded by the user",
     METHOD_REVENUE_ASP: "Estimated units = SEC revenue ÷ user-supplied average selling price",
@@ -121,9 +123,9 @@ def fmt_money(x: float, currency: str = "USD") -> str:
     return f"{sym}{x:,.2f}" if abs(x) < 1e6 else f"{sym}{x:,.0f}"
 
 
-def equation_text(reg: Regression) -> str:
+def equation_text(reg: Regression, label: str = "Unit COGS") -> str:
     sign = "−" if reg.b >= 0 else "+"
-    return f"Unit COGS = {fmt_num(reg.a)} × N^({sign}{fmt_b(abs(reg.b))})"
+    return f"{label} = {fmt_num(reg.a)} × N^({sign}{fmt_b(abs(reg.b))})"
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +134,8 @@ class PeriodInput:
     units: float | None = None
     asp: float | None = None
     source: str = ""
+    source_url: str = ""
+    exclude_reason: str = ""      # set: units count toward cumulative volume, period excluded from the fit
 
 
 @dataclass
@@ -155,7 +159,24 @@ class Analysis:
     revenue_concept: str = ""
     quantity_concept: str = ""
     cogs_filled_from: list[str] = field(default_factory=list)
+    cost_basis: str = "consolidated"          # or "segment"
+    subject_company: str = ""                 # private company the comparable is evaluated for
+    comparable_reason: str = ""
+    comparability_note: str = ""
+    segment: str = ""                         # e.g. "Salt segment" when cost_basis == "segment"
+    extra_limitations: list[str] = field(default_factory=list)   # data-specific, from the segment CSV
+    units_note: str = ""
+    implications: str = ""
     generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
+
+    @property
+    def cost_name(self) -> str:
+        """Short name of the cost measure: 'COGS' for consolidated XBRL data, else the segment measure."""
+        return "COGS" if self.cost_basis == "consolidated" else "segment cost"
+
+    @property
+    def unit_cost_label(self) -> str:
+        return "Unit COGS" if self.cost_basis == "consolidated" else "Unit cost"
 
     @property
     def ok(self) -> bool:
@@ -181,7 +202,7 @@ class Analysis:
     def fingerprint(self) -> str:
         keys = ["period", "start", "end", "cogs", "units", "cogs_accession", "units_source", "asp"]
         payload = json.dumps([[str(r.get(k)) for k in keys] for r in self.rows]
-                             + [self.unit_method, self.cogs_concept, self.frequency])
+                             + [self.unit_method, self.cogs_concept, self.frequency, self.cost_basis])
         return hashlib.sha256(payload.encode()).hexdigest()[:12]
 
 
@@ -204,7 +225,8 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
                    scope_confirmed: bool, inputs: dict[str, PeriodInput] | None = None,
                    revenue: Series | None = None, quantity: Series | None = None,
                    documents: dict[str, str] | None = None,
-                   extra_notes: list[str] | None = None) -> Analysis:
+                   extra_notes: list[str] | None = None, cost_basis: str = "consolidated",
+                   framing: dict[str, str] | None = None) -> Analysis:
     """Assemble the period table, run every data check and fit the curve if the data allow."""
     inputs = inputs or {}
     documents = documents or {}
@@ -213,7 +235,11 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
                   unit_method=unit_method, unit_definition=(unit_definition or "").strip(),
                   scope_confirmed=scope_confirmed, rows=[],
                   revenue_concept=revenue.concept if revenue else "", cogs_filled_from=list(cogs.filled_from),
-                  quantity_concept=quantity.concept if quantity else "")
+                  quantity_concept=quantity.concept if quantity else "", cost_basis=cost_basis,
+                  **{k: (v or "").strip() for k, v in (framing or {}).items()
+                     if k in ("subject_company", "comparable_reason", "comparability_note", "segment")},
+                  extra_limitations=[x.strip() for x in (framing or {}).get("limitations", "").split("|") if x.strip()],
+                  units_note=(framing or {}).get("units_scale_note", "").strip())
     errors, warnings = an.errors, an.warnings
     an.data_notes.extend(extra_notes or [])
     if window:
@@ -232,7 +258,11 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
     rng = fin.ANNUAL_DAYS if frequency == "annual" else fin.QUARTER_DAYS
     for o in window:
         if not rng[0] <= o.days <= rng[1]:
-            errors.append(f"{o.label} covers {o.days} days, which is inconsistent with {frequency} data.")
+            if inputs.get(o.end.isoformat(), PeriodInput()).exclude_reason:
+                warnings.append(f"{o.label} covers {o.days} days, not a full {frequency} period: its units count "
+                                f"toward cumulative volume, but it is excluded from the regression.")
+            else:
+                errors.append(f"{o.label} covers {o.days} days, which is inconsistent with {frequency} data.")
     if not an.unit_definition:
         errors.append("Describe what one unit is (for example 'vehicles delivered').")
 
@@ -253,9 +283,11 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
                "units": None, "units_source": "", "revenue": None, "asp": None,
                "cum_units": None, "unit_cost": None, "in_regression": False, "excluded_reason": ""}
         units, invalid = None, False
-        if unit_method == METHOD_USER_UNITS:
+        if unit_method in (METHOD_USER_UNITS, METHOD_SEGMENT_UNITS):
             units = inp.units
             row["units_source"] = (inp.source or "").strip()
+            if inp.source_url:
+                row["units_url"] = inp.source_url
             if units is not None and not row["units_source"]:
                 missing_source.append(o.label)
         elif unit_method == METHOD_REVENUE_ASP:
@@ -295,7 +327,8 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
             row["cum_units"] = cumulative
             if o.value > 0:
                 row["unit_cost"] = o.value / units
-                row["in_regression"] = True
+                row["in_regression"] = not inp.exclude_reason
+                row["excluded_reason"] = inp.exclude_reason
             else:
                 row["excluded_reason"] = "COGS is zero or negative"
                 warnings.append(f"{o.label}: COGS is not positive ({o.value:,.0f}); its units count toward "
@@ -306,10 +339,12 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
         errors.append(f"SEC revenue ({revenue.concept if revenue else 'n/a'}) is missing for: "
                       f"{', '.join(missing_rev)}.")
     if missing_units:
-        what = {"user_units": "Unit volumes", "revenue_asp": "Average selling prices",
+        what = {"user_units": "Unit volumes", "segment_units": "Unit volumes", "revenue_asp": "Average selling prices",
                 "xbrl_units": "SEC-tagged unit volumes"}.get(unit_method, "Unit volumes")
         errors.append(f"{what} are missing for: {', '.join(missing_units)}. Every period in the window "
-                      f"needs a value because each one adds to cumulative production.")
+                      f"needs a value because each one adds to cumulative production. Either add values for "
+                      f"these periods or move the Analysis period slider so it covers only periods you have "
+                      f"values for.")
     if missing_source:
         errors.append(f"A source is required for every user-supplied value; missing for: "
                       f"{', '.join(missing_source)}.")
@@ -322,9 +357,9 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
                             "ratio and the learning rate mostly reflects margin changes.")
         warnings.append("Units are estimates (revenue ÷ average selling price), not observed production.")
     if not scope_confirmed:
-        warnings.append("Scope mismatch: the unit volumes were not confirmed to cover the same activity as "
-                        "the consolidated COGS. The result is not a valid company-wide experience curve "
-                        "without qualification.")
+        warnings.append(f"Scope mismatch: the unit volumes were not confirmed to cover the same activity as "
+                        f"the {'consolidated COGS' if cost_basis == 'consolidated' else 'segment cost'}. The "
+                        f"result is not a valid experience curve for that activity without qualification.")
 
     n_valid = sum(r["in_regression"] for r in an.rows)
     if not errors and n_valid < MIN_OBSERVATIONS:
@@ -342,6 +377,7 @@ def build_analysis(*, company: str, ticker: str, cik: int, frequency: str, cogs:
         errors.extend(e.messages)
         return an
     an.interpretation = interpret(an)
+    an.implications = implications(an) if an.subject_company else ""
     return an
 
 
@@ -359,12 +395,13 @@ def interpret(an: Analysis) -> str:
     lr = reg.learning_rate
     quality = fit_quality(reg.r2)
     freq = "annual" if an.frequency == "annual" else "quarterly"
+    subject = f"{an.company}'s {an.segment + ' ' if an.segment else ''}{an.unit_cost_label.lower()}"
     s = []
     if lr > 0:
-        s.append(f"Across {reg.n} {freq} observations ({an.date_range}), {an.company}'s unit COGS fell by "
+        s.append(f"Across {reg.n} {freq} observations ({an.date_range}), {subject} fell by "
                  f"about {fmt_pct(lr)} for each doubling of cumulative units (b = {fmt_b(reg.b)}).")
     else:
-        s.append(f"Across {reg.n} {freq} observations ({an.date_range}), {an.company}'s unit COGS rose by "
+        s.append(f"Across {reg.n} {freq} observations ({an.date_range}), {subject} rose by "
                  f"about {fmt_pct(-lr)} for each doubling of cumulative units (b = {fmt_b(reg.b)}), the "
                  f"opposite of an experience-curve effect.")
     if quality == "strong" and lr > 0:
@@ -395,8 +432,49 @@ def interpret(an: Analysis) -> str:
     if an.unit_method == METHOD_REVENUE_ASP:
         lims.append("units are estimated from revenue and assumed prices")
     if not an.scope_confirmed:
-        lims.append("the unit volumes may not match the scope of consolidated COGS")
+        lims.append(f"the unit volumes may not match the scope of the {an.cost_name}")
+    if volume_tracks_time(an):
+        lims.append("because volume per period was fairly stable, cumulative volume rose almost in step with "
+                    "time, so the fit cannot separate volume effects from cost changes over time")
     s.append("Key limitations: " + ", ".join(lims[:-1]) + ", and " + lims[-1] + ".")
+    return " ".join(s)
+
+
+def volume_tracks_time(an: Analysis) -> bool:
+    """True when cumulative units grow almost linearly with elapsed time (correlation ≥ 0.98), i.e. volume per
+    period is roughly stable, so ln N is close to a function of time alone."""
+    rows = an.regression_rows
+    if len(rows) < 3:
+        return False
+    t = np.array([(date.fromisoformat(r["end"]) - date.fromisoformat(an.rows[0]["start"])).days for r in rows], float)
+    n = np.array([r["cum_units"] for r in rows], float)
+    return bool(np.corrcoef(t, n)[0, 1] >= 0.98)
+
+
+def implications(an: Analysis) -> str:
+    """What the comparable's curve does and does not imply for the private company being evaluated."""
+    reg, lr, quality = an.regression, an.regression.learning_rate, fit_quality(an.regression.r2)
+    comp = f"{an.company}{' (' + an.segment + ')' if an.segment else ''}"
+    s = []
+    if lr > 0 and quality == "strong":
+        s.append(f"{comp} shows evidence consistent with production-related cost declines: unit cost fell "
+                 f"about {fmt_pct(lr)} per doubling of cumulative volume with a strong fit (R² = {fmt_r2(reg.r2)}).")
+        s.append("If that pattern reflects learning rather than other factors, producers with more accumulated "
+                 "volume would hold a cost advantage, which favors scale and share-building strategies in that "
+                 "market.")
+    else:
+        detail = (f"unit cost rose about {fmt_pct(-lr)} per doubling of cumulative volume (R² = {fmt_r2(reg.r2)})"
+                  if lr <= 0 else f"the fit is {quality} (R² = {fmt_r2(reg.r2)})")
+        s.append(f"{comp} does not show evidence of production-related cost advantages over this window: {detail}, "
+                 f"so the data do not establish a meaningful experience-curve advantage.")
+        s.append("Accumulated volume therefore does not appear to give the comparable a learning-driven cost lead "
+                 "that would by itself shut out smaller competitors; any scale advantage would have to come from "
+                 "other sources (such as fixed-cost absorption, purchasing or logistics), which this analysis "
+                 "does not measure.")
+    s.append(f"The measured rate should not be assumed to transfer to {an.subject_company}. "
+             + (an.comparability_note or "Differences in product mix, branding, pricing and manufacturing scale "
+                "mean the comparable is only an imperfect industry reference."))
+    s.append(f"This analysis does not predict the learning rate {an.subject_company} will achieve.")
     return " ".join(s)
 
 
@@ -409,6 +487,24 @@ def methodology_text(an: Analysis) -> list[str]:
         "(for example, Q4 = fiscal-year total from the 10-K minus nine-month year-to-date from the Q3 10-Q). "
         "Year-to-date totals are never used as quarters, and four quarters are checked against the annual "
         "total where both are available.")
+    calc = (f"Cumulative units N(t) = sum of units from the first period in the window through period t. "
+            f"Unit cost C(t) = period {an.cost_name} ÷ period units. The model C = A·N^(−b) is fitted by ordinary "
+            f"least squares of ln C on ln N. Learning rate = 1 − 2^(−b); R² is from the log-space regression.")
+    units = f"Unit volumes: {METHOD_LABELS.get(an.unit_method, '')}. Unit definition: {an.unit_definition or '—'}."
+    if an.cost_basis == "segment":
+        excluded = [r for r in an.rows if r["excluded_reason"]]
+        return [
+            f"Cost measure: {an.cogs_label}. Segment figures are not published in the SEC Company Facts API "
+            f"(it holds only consolidated facts), so each value was transcribed from the segment note or MD&A of "
+            f"the cited 10-K/10-KT (CIK {an.cik}); the table above gives the form, filing date, accession number "
+            f"and derivation for every figure. Costs and units are for the same segment.",
+            "When a period appears in several filings, the most recently filed figure is used so that "
+            "restatements are reflected; differences from earlier filings are listed under data notes.",
+            units,
+            calc + (" Periods that are not full fiscal years (" + ", ".join(r["period"] for r in excluded)
+                    + ") add their units to N but are excluded from the regression, so cumulative volume has no "
+                    "gap and every regression observation covers a full year." if excluded else ""),
+        ]
     return [
         f"COGS is the SEC XBRL concept {an.cogs_concept} ({an.cogs_label}) in {an.currency}, taken from the "
         f"SEC Company Facts API for CIK {an.cik}. Periods are identified by their exact start and end dates; "
@@ -425,8 +521,6 @@ def methodology_text(an: Analysis) -> list[str]:
         "identical values (within 0.5%) in at least two overlapping periods; each row shows its own tag."
         + (f" Periods filled this way here: from {', '.join(an.cogs_filled_from)}." if an.cogs_filled_from
            else " No periods were filled from alternative concepts in this analysis."),
-        f"Unit volumes: {METHOD_LABELS.get(an.unit_method, '')}. Unit definition: {an.unit_definition or '—'}.",
-        "Cumulative units N(t) = sum of units from the first period in the window through period t. "
-        "Unit cost C(t) = period COGS ÷ period units. The model C = A·N^(−b) is fitted by ordinary least "
-        "squares of ln C on ln N. Learning rate = 1 − 2^(−b); R² is from the log-space regression.",
+        units,
+        calc,
     ]

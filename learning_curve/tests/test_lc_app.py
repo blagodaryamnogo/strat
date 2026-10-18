@@ -65,9 +65,11 @@ def test_app_refuses_without_units(offline_sec):
     at = AppTest.from_file(APP, default_timeout=60).run()
     at.text_input[0].input(syn.TICKER)
     at.button[0].click().run()
-    at.radio[1].set_value(at.radio[1].options[1]).run()   # "Enter or upload actual unit volumes"
+    method = next(r for r in at.radio if r.label == "Unit measurement method")
+    method.set_value(method.options[1]).run()   # "Enter or upload actual unit volumes"
     at.text_input[1].input("vehicles delivered")
     next(b for b in at.button if b.label == "Calculate Experience Curve").click().run()
     assert not at.exception
     assert at.error and "cannot be reported" in at.error[0].value
     assert not at.metric
+

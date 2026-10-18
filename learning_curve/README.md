@@ -33,6 +33,14 @@ streamlit run learning_curve/app.py
 You can also copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` (it is git-ignored) instead of
 exporting variables. If `SEC_USER_AGENT` is not set, the page asks the visitor for a name and email.
 
+## Run in the browser with GitHub Codespaces
+
+On the repository page, choose the branch, click **Code → Codespaces → Create codespace on <branch>**. The
+`.devcontainer` config installs the requirements and starts the app; it opens in a new tab (or open the
+**Ports** panel and click the globe icon next to port 8501). The page asks for your name and email for the SEC
+User-Agent unless you add `SEC_USER_AGENT` as a Codespaces secret. XSRF protection is turned off in this
+private development container only, because Codespaces' port forwarding otherwise blocks CSV uploads.
+
 ## Tests
 
 ```bash
@@ -53,6 +61,44 @@ SEC_USER_AGENT="Your Name you@byu.edu" python -m pytest learning_curve/tests/tes
 
 The synthetic fixture (`tests/synthetic.py`) is labeled "SYNTHETIC TEST CO (not a real company)" and exists only
 in tests.
+
+
+## Segment cost basis and the Silk Road Salts analysis
+
+Segment-level figures are not in the SEC Company Facts API, which publishes only consolidated facts. To analyze
+one segment, choose **Cost basis → Segment cost and units from SEC filings** and upload a CSV in which every figure
+cites its filing:
+
+- **Columns:** `period_label, period_start, period_end, segment_cost, units, cost_form, cost_accession, cost_filed,
+  cost_derivation, units_form, units_accession, units_location, include_in_regression, exclusion_reason,
+  restatement_note`.
+- **Metadata lines:** lines starting with `# key: value` set the cost measure, unit definition, segment, the private
+  company being evaluated, the reason for choosing the comparable, why its rate may not transfer, and
+  data-specific limitations (separated by `|`).
+- **Bridging periods:** a period with `include_in_regression = no` and a stated reason, such as a fiscal-year-change
+  transition period, still adds its units to cumulative volume but is left out of the fit.
+
+`examples/cmp_salt_segment_2015_2025.csv` is the Silk Road Salts comparable:
+
+- **Company and segment:** the Compass Minerals Salt segment, FY2015–FY2025.
+- **Cost:** derived each year as Salt sales − shipping and handling − Salt operating earnings, from the cited
+  segment note.
+- **Units:** tons sold, from the MD&A Salt Segment Results table.
+- **Verification:** `test_lc_live.py::test_compass_salt_csv_figures_match_cited_filings` re-reads every cited filing
+  and checks each figure for its period.
+
+The exported report is `examples/Learning_Curve_CMP_SilkRoadSalts_2026-10-17.pdf`.
+
+**Why not McCormick (MKC)?** It was evaluated first. Its fiscal 2020–2025 10-Ks disclose no absolute unit volumes;
+they give only a combined percentage "volume and product mix" change, which mixes volume with mix and has no base
+level. Consumer-segment cost of goods sold appears only in the FY2025 10-K (fiscal 2023–2025, 3 years), and no
+documented average selling price exists for a revenue-based proxy. A McCormick curve would therefore need invented
+or unsupported inputs.
+
+**Result (Compass Minerals Salt segment):** learning rate −11.2%, b = −0.1526, R² = 0.849, 10 annual observations.
+The 2021 nine-month transition period counts toward cumulative tons but is excluded from the fit. Unit cost rose
+from $35.66 to $52.00 per ton, so no experience-curve cost decline is visible. Sensitivity checks keep the same
+direction: −10.6% (R² 0.78) with the transition period included, and −7.8% (R² 0.89) for calendar 2015–2020 only.
 
 ## Verified real-company checks
 

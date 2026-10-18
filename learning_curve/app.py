@@ -93,9 +93,10 @@ st.title("Learning-Curve Calculator")
 st.markdown("Measure whether a company's costs decline with cumulative production.")
 
 user_agent = setting("SEC_USER_AGENT")
-# The deployed public address of this tool; PUBLIC_APP_URL (env or Streamlit secrets) overrides it.
-DEFAULT_PUBLIC_APP_URL = "https://srslearningcurve.streamlit.app"
-app_url = setting("PUBLIC_APP_URL") or DEFAULT_PUBLIC_APP_URL
+# The deployed public address of this tool, printed in every exported PDF. Fixed here so a stale
+# PUBLIC_APP_URL secret cannot put the wrong link in the report.
+PUBLIC_APP_URL = "https://srslearningcurve.streamlit.app"
+app_url = PUBLIC_APP_URL
 if not user_agent:
     with st.expander("SEC contact required", expanded=True):
         st.write("The SEC asks every API user to identify themselves. Enter your name and email; it is sent "
@@ -461,8 +462,6 @@ if pdf_error:
 else:
     st.download_button("Export Report to PDF", pdf_bytes, file_name=report_filename(an),
                        mime="application/pdf", type="primary", key="pdf_bottom")
-if not app_url:
-    st.caption("PUBLIC_APP_URL is not configured, so the PDF states that the public tool link is missing.")
 st.download_button("Download calculations (CSV)", build_csv(an),
                    file_name=report_filename(an).replace(".pdf", ".csv"), mime="text/csv")
 st.caption(f"Input fingerprint {an.fingerprint} · generated {an.generated_at}")
